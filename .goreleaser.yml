@@ -47,17 +47,6 @@ changelog:
       - "^ci:"
       - "^chore:"
 
-brews:
-  - repository:
-      owner: Omotolani98
-      name: homebrew-tap
-    name: foostash
-    homepage: https://github.com/Omotolani98/foostash
-    description: Open-source secrets and environment variable manager
-    license: MIT
-    install: |
-      bin.install "foostash"
-
 release:
   github:
     owner: Omotolani98
