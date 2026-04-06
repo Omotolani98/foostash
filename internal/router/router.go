@@ -13,12 +13,13 @@ import (
 )
 
 type Dependencies struct {
-	Auth     *handler.AuthHandler
-	Projects *handler.ProjectsHandler
-	Secrets  *handler.SecretsHandler
-	Health   *handler.HealthHandler
-	AuthSvc  *service.AuthService
-	Redis    *redis.Client
+	Auth           *handler.AuthHandler
+	Projects       *handler.ProjectsHandler
+	Secrets        *handler.SecretsHandler
+	Health         *handler.HealthHandler
+	AuthSvc        *service.AuthService
+	Redis          *redis.Client
+	CORSOrigins    []string
 }
 
 func New(deps *Dependencies) *chi.Mux {
@@ -29,6 +30,10 @@ func New(deps *Dependencies) *chi.Mux {
 	r.Use(middleware.Logger)
 	r.Use(middleware.Recoverer)
 	r.Use(middleware.Timeout(30 * time.Second))
+
+	if len(deps.CORSOrigins) > 0 {
+		r.Use(appmw.CORS(deps.CORSOrigins))
+	}
 	r.Use(func(next http.Handler) http.Handler {
 		return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 			r.Body = http.MaxBytesReader(w, r.Body, 1<<20)
