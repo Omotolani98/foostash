@@ -1,6 +1,7 @@
 package router
 
 import (
+	"net/http"
 	"time"
 
 	"github.com/Omotolani98/foostash/internal/handler"
@@ -8,6 +9,7 @@ import (
 	"github.com/Omotolani98/foostash/internal/service"
 	"github.com/go-chi/chi/v5"
 	"github.com/go-chi/chi/v5/middleware"
+	"github.com/redis/go-redis/v9"
 )
 
 type Dependencies struct {
@@ -16,6 +18,7 @@ type Dependencies struct {
 	Secrets  *handler.SecretsHandler
 	Health   *handler.HealthHandler
 	AuthSvc  *service.AuthService
+	Redis    *redis.Client
 }
 
 func New(deps *Dependencies) *chi.Mux {
@@ -26,6 +29,17 @@ func New(deps *Dependencies) *chi.Mux {
 	r.Use(middleware.Logger)
 	r.Use(middleware.Recoverer)
 	r.Use(middleware.Timeout(30 * time.Second))
+	r.Use(func(next http.Handler) http.Handler {
+		return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+			r.Body = http.MaxBytesReader(w, r.Body, 1<<20)
+			next.ServeHTTP(w, r)
+		})
+	})
+
+	r.Use(appmw.RateLimit(deps.Redis, appmw.RateLimitConfig{
+		Requests: 300,
+		Window:   time.Minute,
+	}))
 
 	r.Get("/healthz", deps.Health.Check)
 
@@ -51,6 +65,8 @@ func New(deps *Dependencies) *chi.Mux {
 		r.Get("/v1/projects/{slug}/envs/{env}/secrets", deps.Secrets.Pull)
 		r.Post("/v1/projects/{slug}/envs/{env}/secrets", deps.Secrets.Set)
 		r.Delete("/v1/projects/{slug}/envs/{env}/secrets/{key}", deps.Secrets.Delete)
+		r.Get("/v1/projects/{slug}/envs/{env}/secrets/{key}/versions", deps.Secrets.Versions)
+		r.Get("/v1/projects/{slug}/envs/{env}/diff/{otherEnv}", deps.Secrets.Diff)
 	})
 
 	return r

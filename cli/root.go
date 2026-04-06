@@ -8,10 +8,17 @@ import (
 	"github.com/spf13/cobra"
 )
 
+var (
+	Version = "dev"
+	Commit  = "none"
+	Date    = "unknown"
+)
+
 func NewRootCmd() *cobra.Command {
 	root := &cobra.Command{
-		Use:   "foostash",
-		Short: "Foostash: centralized secrets and environment manager",
+		Use:     "foostash",
+		Short:   "Foostash: centralized secrets and environment manager",
+		Version: fmt.Sprintf("%s (commit %s, built %s)", Version, Commit, Date),
 	}
 	root.AddCommand(
 		newLoginCmd(),
@@ -20,6 +27,8 @@ func NewRootCmd() *cobra.Command {
 		newSetCmd(),
 		newPullCmd(),
 		newRunCmd(),
+		newDiffCmd(),
+		newVersionsCmd(),
 	)
 	return root
 }

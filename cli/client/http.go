@@ -163,6 +163,42 @@ type SetResponse struct {
 	Version     int      `json:"version"`
 }
 
+type DiffResponse struct {
+	Project         string   `json:"project"`
+	Left            string   `json:"left"`
+	Right           string   `json:"right"`
+	OnlyLeft        []string `json:"only_left"`
+	OnlyRight       []string `json:"only_right"`
+	DifferentValues []string `json:"different_values"`
+	Identical       []string `json:"identical"`
+}
+
+func (c *Client) Diff(projectSlug, left, right string) (*DiffResponse, error) {
+	var out DiffResponse
+	err := c.do("GET", fmt.Sprintf("/v1/projects/%s/envs/%s/diff/%s", projectSlug, left, right), nil, &out)
+	return &out, err
+}
+
+type VersionEntry struct {
+	Version   int       `json:"version"`
+	Value     string    `json:"value"`
+	CreatedBy string    `json:"created_by,omitempty"`
+	CreatedAt time.Time `json:"created_at"`
+}
+
+type VersionsResponse struct {
+	Project     string         `json:"project"`
+	Environment string         `json:"environment"`
+	Key         string         `json:"key"`
+	Versions    []VersionEntry `json:"versions"`
+}
+
+func (c *Client) Versions(projectSlug, env, key string) (*VersionsResponse, error) {
+	var out VersionsResponse
+	err := c.do("GET", fmt.Sprintf("/v1/projects/%s/envs/%s/secrets/%s/versions", projectSlug, env, key), nil, &out)
+	return &out, err
+}
+
 func (c *Client) Set(projectSlug, env string, secrets map[string]string) (*SetResponse, error) {
 	var out SetResponse
 	err := c.do("POST", fmt.Sprintf("/v1/projects/%s/envs/%s/secrets", projectSlug, env),

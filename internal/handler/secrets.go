@@ -80,6 +80,55 @@ func (h *SecretsHandler) Set(w http.ResponseWriter, r *http.Request) {
 	})
 }
 
+func (h *SecretsHandler) Versions(w http.ResponseWriter, r *http.Request) {
+	auth := AuthFromContext(r.Context())
+	if !auth.HasScope("secrets:read") {
+		WriteError(w, service.ErrForbidden)
+		return
+	}
+	slug := chi.URLParam(r, "slug")
+	env := chi.URLParam(r, "env")
+	key := chi.URLParam(r, "key")
+
+	versions, err := h.svc.ListVersions(r.Context(), auth.OrgID, slug, env, key)
+	if err != nil {
+		WriteError(w, err)
+		return
+	}
+	WriteJSON(w, http.StatusOK, map[string]any{
+		"project":     slug,
+		"environment": env,
+		"key":         key,
+		"versions":    versions,
+	})
+}
+
+func (h *SecretsHandler) Diff(w http.ResponseWriter, r *http.Request) {
+	auth := AuthFromContext(r.Context())
+	if !auth.HasScope("secrets:read") {
+		WriteError(w, service.ErrForbidden)
+		return
+	}
+	slug := chi.URLParam(r, "slug")
+	env := chi.URLParam(r, "env")
+	other := chi.URLParam(r, "otherEnv")
+
+	diff, err := h.svc.Diff(r.Context(), auth.OrgID, slug, env, other)
+	if err != nil {
+		WriteError(w, err)
+		return
+	}
+	WriteJSON(w, http.StatusOK, map[string]any{
+		"project":          slug,
+		"left":             env,
+		"right":            other,
+		"only_left":        diff.OnlyLeft,
+		"only_right":       diff.OnlyRight,
+		"different_values": diff.DifferentValues,
+		"identical":        diff.Identical,
+	})
+}
+
 func (h *SecretsHandler) Delete(w http.ResponseWriter, r *http.Request) {
 	auth := AuthFromContext(r.Context())
 	if !auth.HasScope("secrets:write") {

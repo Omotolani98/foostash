@@ -10,4 +10,5 @@ var (
 	ErrInvalidCredentials = errors.New("invalid credentials")
 	ErrPlanLimitReached   = errors.New("plan limit reached")
 	ErrValidation         = errors.New("validation failed")
+	ErrRateLimited        = errors.New("rate limit exceeded")
 )
