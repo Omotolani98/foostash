@@ -1,17 +1,15 @@
-FROM golang:1.25-alpine AS builder
+FROM golang:1.25-alpine AS build
 WORKDIR /src
 COPY go.mod go.sum ./
 RUN go mod download
 COPY . .
-RUN CGO_ENABLED=0 go build -o /out/foostash ./cmd/server
-RUN CGO_ENABLED=0 go build -o /out/foostash-cli ./cmd/cli
+RUN CGO_ENABLED=0 go build -ldflags="-s -w" -o /bin/foostash-server ./cmd/server
 
-FROM alpine:3.20
+FROM alpine:3.21
 RUN apk add --no-cache ca-certificates
-COPY --from=builder /out/foostash /usr/local/bin/foostash
-COPY --from=builder /out/foostash-cli /usr/local/bin/foostash-cli
-COPY --from=builder /src/migrations /migrations
+COPY --from=build /bin/foostash-server /usr/local/bin/foostash-server
+COPY migrations /migrations
+EXPOSE 8080
+ENV FOOSTASH_PORT=8080
 ENV FOOSTASH_MIGRATIONS_DIR=/migrations
-EXPOSE 8400
-ENTRYPOINT ["foostash"]
-CMD ["serve"]
+CMD ["foostash-server", "serve"]
