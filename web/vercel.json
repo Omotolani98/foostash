@@ -1,0 +1,7 @@
+{
+  "rewrites": [
+    { "source": "/v1/:path*", "destination": "https://foostash.fly.dev/v1/:path*" },
+    { "source": "/healthz", "destination": "https://foostash.fly.dev/healthz" },
+    { "source": "/((?!v1|healthz).*)", "destination": "/index.html" }
+  ]
+}
