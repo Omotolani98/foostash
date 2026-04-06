@@ -15,6 +15,7 @@ type Config struct {
 	MasterKeyFile string
 	JWTSecret     string
 	MigrationsDir string
+	CORSOrigins   []string
 }
 
 func Load() (*Config, error) {
@@ -26,6 +27,14 @@ func Load() (*Config, error) {
 		MasterKeyFile: os.Getenv("FOOSTASH_MASTER_KEY_FILE"),
 		JWTSecret:     os.Getenv("FOOSTASH_JWT_SECRET"),
 		MigrationsDir: os.Getenv("FOOSTASH_MIGRATIONS_DIR"),
+	}
+
+	if origins := os.Getenv("FOOSTASH_CORS_ORIGINS"); origins != "" {
+		for _, o := range strings.Split(origins, ",") {
+			if v := strings.TrimSpace(o); v != "" {
+				c.CORSOrigins = append(c.CORSOrigins, v)
+			}
+		}
 	}
 
 	if p := os.Getenv("FOOSTASH_PORT"); p != "" {

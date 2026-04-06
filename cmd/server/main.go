@@ -113,12 +113,13 @@ func runServe() error {
 	secretsSvc := service.NewSecretsService(secretsStore, envsStore, engine, auditSvc)
 
 	deps := &router.Dependencies{
-		Auth:     handler.NewAuthHandler(authSvc),
-		Projects: handler.NewProjectsHandler(projectsSvc),
-		Secrets:  handler.NewSecretsHandler(secretsSvc),
-		Health:   handler.NewHealthHandler(db),
-		AuthSvc:  authSvc,
-		Redis:    rdb,
+		Auth:        handler.NewAuthHandler(authSvc),
+		Projects:    handler.NewProjectsHandler(projectsSvc),
+		Secrets:     handler.NewSecretsHandler(secretsSvc),
+		Health:      handler.NewHealthHandler(db),
+		AuthSvc:     authSvc,
+		Redis:       rdb,
+		CORSOrigins: cfg.CORSOrigins,
 	}
 
 	srv := &http.Server{

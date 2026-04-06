@@ -38,13 +38,15 @@ export function getSession() {
   }
 }
 
+const API_BASE = import.meta.env.VITE_API_URL ?? ""
+
 async function request<T>(method: string, path: string, body?: unknown): Promise<T> {
   const headers: Record<string, string> = {}
   if (body !== undefined) headers["Content-Type"] = "application/json"
   const token = getToken()
   if (token) headers["Authorization"] = `Bearer ${token}`
 
-  const res = await fetch(path, {
+  const res = await fetch(`${API_BASE}${path}`, {
     method,
     headers,
     body: body !== undefined ? JSON.stringify(body) : undefined,
