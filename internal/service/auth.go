@@ -5,6 +5,7 @@ import (
 	"crypto/rand"
 	"crypto/sha256"
 	"encoding/hex"
+	"encoding/json"
 	"errors"
 	"fmt"
 	"strings"
@@ -12,13 +13,16 @@ import (
 
 	"github.com/Omotolani98/foostash/internal/store"
 	"github.com/golang-jwt/jwt/v5"
+	"github.com/redis/go-redis/v9"
 	"golang.org/x/crypto/bcrypt"
 )
 
 const (
-	APIKeyPrefix   = "fst_"
-	APIKeyRawBytes = 32
-	JWTExpiry      = 24 * time.Hour
+	APIKeyPrefix    = "fst_"
+	APIKeyRawBytes  = 32
+	JWTExpiry       = 24 * time.Hour
+	APIKeyCacheTTL  = 60 * time.Second
+	APIKeyCachePfx  = "apikey:"
 )
 
 type AuthService struct {
@@ -26,10 +30,11 @@ type AuthService struct {
 	orgs      *store.OrganizationsStore
 	apiKeys   *store.APIKeysStore
 	jwtSecret []byte
+	cache     *redis.Client
 }
 
-func NewAuthService(users *store.UsersStore, orgs *store.OrganizationsStore, apiKeys *store.APIKeysStore, jwtSecret []byte) *AuthService {
-	return &AuthService{users: users, orgs: orgs, apiKeys: apiKeys, jwtSecret: jwtSecret}
+func NewAuthService(users *store.UsersStore, orgs *store.OrganizationsStore, apiKeys *store.APIKeysStore, jwtSecret []byte, cache *redis.Client) *AuthService {
+	return &AuthService{users: users, orgs: orgs, apiKeys: apiKeys, jwtSecret: jwtSecret, cache: cache}
 }
 
 type RegisterInput struct {
@@ -172,11 +177,38 @@ func (a *AuthService) CreateAPIKey(ctx context.Context, userID, orgID, name stri
 	return &CreatedAPIKey{Row: row, RawKey: rawKey}, nil
 }
 
+type cachedAPIKey struct {
+	ID      string   `json:"id"`
+	UserID  string   `json:"user_id"`
+	OrgID   string   `json:"org_id"`
+	Scopes  []string `json:"scopes"`
+	Expires int64    `json:"expires,omitempty"`
+}
+
 func (a *AuthService) ResolveAPIKey(ctx context.Context, rawKey string) (*store.APIKeyRow, error) {
 	if !strings.HasPrefix(rawKey, APIKeyPrefix) {
 		return nil, ErrUnauthorized
 	}
-	row, err := a.apiKeys.GetByHash(ctx, hashKey(rawKey))
+	hash := hashKey(rawKey)
+
+	if a.cache != nil {
+		if b, err := a.cache.Get(ctx, APIKeyCachePfx+hash).Bytes(); err == nil {
+			var c cachedAPIKey
+			if json.Unmarshal(b, &c) == nil {
+				if c.Expires > 0 && time.Now().Unix() > c.Expires {
+					return nil, ErrUnauthorized
+				}
+				return &store.APIKeyRow{
+					ID:     c.ID,
+					UserID: c.UserID,
+					OrgID:  c.OrgID,
+					Scopes: c.Scopes,
+				}, nil
+			}
+		}
+	}
+
+	row, err := a.apiKeys.GetByHash(ctx, hash)
 	if err != nil {
 		if errors.Is(err, store.ErrNotFound) {
 			return nil, ErrUnauthorized
@@ -186,6 +218,17 @@ func (a *AuthService) ResolveAPIKey(ctx context.Context, rawKey string) (*store.
 	if row.ExpiresAt.Valid && time.Now().After(row.ExpiresAt.Time) {
 		return nil, ErrUnauthorized
 	}
+
+	if a.cache != nil {
+		c := cachedAPIKey{ID: row.ID, UserID: row.UserID, OrgID: row.OrgID, Scopes: row.Scopes}
+		if row.ExpiresAt.Valid {
+			c.Expires = row.ExpiresAt.Time.Unix()
+		}
+		if b, err := json.Marshal(c); err == nil {
+			a.cache.Set(ctx, APIKeyCachePfx+hash, b, APIKeyCacheTTL)
+		}
+	}
+
 	go a.apiKeys.TouchLastUsed(context.Background(), row.ID)
 	return row, nil
 }

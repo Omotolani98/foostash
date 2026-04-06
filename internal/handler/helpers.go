@@ -3,6 +3,7 @@ package handler
 import (
 	"encoding/json"
 	"errors"
+	"fmt"
 	"log"
 	"net/http"
 
@@ -54,6 +55,8 @@ func mapError(err error) (string, int) {
 		return "bad_request", http.StatusBadRequest
 	case errors.Is(err, service.ErrPlanLimitReached):
 		return "forbidden", http.StatusForbidden
+	case errors.Is(err, service.ErrRateLimited):
+		return "rate_limited", http.StatusTooManyRequests
 	default:
 		log.Printf("internal error: %v", err)
 		return "internal", http.StatusInternalServerError
@@ -64,7 +67,10 @@ func DecodeJSON(r *http.Request, dst any) error {
 	dec := json.NewDecoder(r.Body)
 	dec.DisallowUnknownFields()
 	if err := dec.Decode(dst); err != nil {
-		return errors.Join(service.ErrValidation, err)
+		return fmt.Errorf("%w: invalid request body: %s", service.ErrValidation, err.Error())
+	}
+	if dec.More() {
+		return fmt.Errorf("%w: request body must contain a single JSON object", service.ErrValidation)
 	}
 	return nil
 }

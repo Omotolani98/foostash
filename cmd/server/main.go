@@ -17,6 +17,7 @@ import (
 	"github.com/Omotolani98/foostash/internal/router"
 	"github.com/Omotolani98/foostash/internal/service"
 	"github.com/Omotolani98/foostash/internal/store"
+	"github.com/redis/go-redis/v9"
 )
 
 func main() {
@@ -80,6 +81,24 @@ func runServe() error {
 		return err
 	}
 
+	var rdb *redis.Client
+	if cfg.RedisURL != "" {
+		opts, err := redis.ParseURL(cfg.RedisURL)
+		if err != nil {
+			return fmt.Errorf("parse redis url: %w", err)
+		}
+		rdb = redis.NewClient(opts)
+		pingCtx, pingCancel := context.WithTimeout(ctx, 3*time.Second)
+		if err := rdb.Ping(pingCtx).Err(); err != nil {
+			log.Printf("warning: redis unreachable (%v) — continuing without cache/rate-limit", err)
+			rdb = nil
+		}
+		pingCancel()
+		if rdb != nil {
+			defer rdb.Close()
+		}
+	}
+
 	orgsStore := store.NewOrganizationsStore(db)
 	usersStore := store.NewUsersStore(db)
 	projectsStore := store.NewProjectsStore(db)
@@ -89,7 +108,7 @@ func runServe() error {
 	auditStore := store.NewAuditStore(db)
 
 	auditSvc := service.NewAuditService(auditStore)
-	authSvc := service.NewAuthService(usersStore, orgsStore, apiKeysStore, []byte(cfg.JWTSecret))
+	authSvc := service.NewAuthService(usersStore, orgsStore, apiKeysStore, []byte(cfg.JWTSecret), rdb)
 	projectsSvc := service.NewProjectsService(projectsStore, envsStore, orgsStore)
 	secretsSvc := service.NewSecretsService(secretsStore, envsStore, engine, auditSvc)
 
@@ -99,6 +118,7 @@ func runServe() error {
 		Secrets:  handler.NewSecretsHandler(secretsSvc),
 		Health:   handler.NewHealthHandler(db),
 		AuthSvc:  authSvc,
+		Redis:    rdb,
 	}
 
 	srv := &http.Server{

@@ -71,21 +71,89 @@ func (s *SecretsStore) Upsert(ctx context.Context, envID, key string, encVal, no
 		createdBy = userID
 	}
 
+	tx, err := s.db.BeginTx(ctx, nil)
+	if err != nil {
+		return 0, fmt.Errorf("begin tx: %w", err)
+	}
+	defer tx.Rollback()
+
+	var existingID string
+	var existingVersion int
+	var existingValue, existingNonce []byte
+	var existingCreatedBy sql.NullString
+	err = tx.QueryRowContext(ctx,
+		`SELECT id, version, encrypted_value, nonce, created_by FROM secrets
+		 WHERE environment_id = $1 AND key = $2 FOR UPDATE`, envID, key).
+		Scan(&existingID, &existingVersion, &existingValue, &existingNonce, &existingCreatedBy)
+	exists := err == nil
+	if err != nil && !errors.Is(err, sql.ErrNoRows) {
+		return 0, fmt.Errorf("lock existing secret: %w", err)
+	}
+
+	if exists {
+		if _, err := tx.ExecContext(ctx,
+			`INSERT INTO secret_versions (secret_id, version, encrypted_value, nonce, created_by)
+			 VALUES ($1, $2, $3, $4, $5)`,
+			existingID, existingVersion, existingValue, existingNonce, existingCreatedBy); err != nil {
+			return 0, fmt.Errorf("snapshot version: %w", err)
+		}
+	}
+
 	var version int
-	err := s.db.QueryRowContext(ctx,
+	err = tx.QueryRowContext(ctx,
 		`INSERT INTO secrets (environment_id, key, encrypted_value, nonce, version, created_by)
 		 VALUES ($1, $2, $3, $4, 1, $5)
 		 ON CONFLICT (environment_id, key) DO UPDATE
 		 SET encrypted_value = EXCLUDED.encrypted_value,
 		     nonce = EXCLUDED.nonce,
 		     version = secrets.version + 1,
+		     created_by = EXCLUDED.created_by,
 		     updated_at = now()
 		 RETURNING version`,
 		envID, key, encVal, nonce, createdBy).Scan(&version)
 	if err != nil {
 		return 0, fmt.Errorf("upsert secret: %w", err)
 	}
+
+	if err := tx.Commit(); err != nil {
+		return 0, fmt.Errorf("commit upsert: %w", err)
+	}
 	return version, nil
+}
+
+type SecretVersionRow struct {
+	Version        int
+	EncryptedValue []byte
+	Nonce          []byte
+	CreatedBy      sql.NullString
+	CreatedAt      time.Time
+}
+
+func (s *SecretsStore) ListVersions(ctx context.Context, envID, key string) ([]SecretVersionRow, error) {
+	rows, err := s.db.QueryContext(ctx,
+		`SELECT sv.version, sv.encrypted_value, sv.nonce, sv.created_by, sv.created_at
+		 FROM secret_versions sv
+		 JOIN secrets s ON s.id = sv.secret_id
+		 WHERE s.environment_id = $1 AND s.key = $2
+		 UNION ALL
+		 SELECT version, encrypted_value, nonce, created_by, updated_at
+		 FROM secrets
+		 WHERE environment_id = $1 AND key = $2
+		 ORDER BY version DESC`, envID, key)
+	if err != nil {
+		return nil, fmt.Errorf("list versions: %w", err)
+	}
+	defer rows.Close()
+
+	var out []SecretVersionRow
+	for rows.Next() {
+		var r SecretVersionRow
+		if err := rows.Scan(&r.Version, &r.EncryptedValue, &r.Nonce, &r.CreatedBy, &r.CreatedAt); err != nil {
+			return nil, fmt.Errorf("scan version: %w", err)
+		}
+		out = append(out, r)
+	}
+	return out, rows.Err()
 }
 
 func (s *SecretsStore) Delete(ctx context.Context, envID, key string) error {
