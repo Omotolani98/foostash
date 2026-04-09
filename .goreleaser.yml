@@ -8,7 +8,7 @@ before:
 
 builds:
   - id: foostash
-    main: ./cmd/cli
+    main: ./cmd/foostash
     binary: foostash
     env:
       - CGO_ENABLED=0
