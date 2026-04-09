@@ -29,7 +29,7 @@ go run ./cmd/server serve
 ## CLI usage
 
 ```bash
-go build -o foostash ./cmd/cli
+go build -o foostash ./cmd/foostash
 
 ./foostash register              # create org + user, saves token to ~/.foostash/config.yaml
 ./foostash init --project myapp  # writes .foostash.yaml
