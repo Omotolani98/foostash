@@ -1,7 +1,0 @@
-{
-  "rewrites": [
-    { "source": "/v1/(.*)", "destination": "https://foostash.fly.dev/v1/$1" },
-    { "source": "/healthz", "destination": "https://foostash.fly.dev/healthz" },
-    { "source": "/(.*)", "destination": "/index.html" }
-  ]
-}
