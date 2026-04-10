@@ -3,76 +3,80 @@ package config
 import (
 	"fmt"
 	"os"
-	"strconv"
-	"strings"
+	"path/filepath"
+
+	"github.com/Omotolani98/foostash/internal/crypto"
+	"gopkg.in/yaml.v3"
 )
 
-type Config struct {
-	Port          int
-	DatabaseURL   string
-	RedisURL      string
-	MasterKey     string
-	MasterKeyFile string
-	JWTSecret     string
-	MigrationsDir string
-	CORSOrigins   []string
+type Defaults struct {
+	Env    string `yaml:"env"`
+	Format string `yaml:"format"`
 }
 
-func Load() (*Config, error) {
-	c := &Config{
-		Port:          8400,
-		DatabaseURL:   os.Getenv("FOOSTASH_DB_URL"),
-		RedisURL:      os.Getenv("FOOSTASH_REDIS_URL"),
-		MasterKey:     os.Getenv("FOOSTASH_MASTER_KEY"),
-		MasterKeyFile: os.Getenv("FOOSTASH_MASTER_KEY_FILE"),
-		JWTSecret:     os.Getenv("FOOSTASH_JWT_SECRET"),
-		MigrationsDir: os.Getenv("FOOSTASH_MIGRATIONS_DIR"),
-	}
-
-	if origins := os.Getenv("FOOSTASH_CORS_ORIGINS"); origins != "" {
-		for _, o := range strings.Split(origins, ",") {
-			if v := strings.TrimSpace(o); v != "" {
-				c.CORSOrigins = append(c.CORSOrigins, v)
-			}
-		}
-	}
-
-	if p := os.Getenv("FOOSTASH_PORT"); p != "" {
-		v, err := strconv.Atoi(p)
-		if err != nil {
-			return nil, fmt.Errorf("invalid FOOSTASH_PORT: %w", err)
-		}
-		c.Port = v
-	}
-
-	if c.MigrationsDir == "" {
-		c.MigrationsDir = "./migrations"
-	}
-
-	var missing []string
-	if c.DatabaseURL == "" {
-		missing = append(missing, "FOOSTASH_DB_URL")
-	}
-	if c.JWTSecret == "" {
-		missing = append(missing, "FOOSTASH_JWT_SECRET")
-	}
-	if c.MasterKey == "" && c.MasterKeyFile == "" {
-		missing = append(missing, "FOOSTASH_MASTER_KEY or FOOSTASH_MASTER_KEY_FILE")
-	}
-	if len(missing) > 0 {
-		return nil, fmt.Errorf("missing required env vars: %s", strings.Join(missing, ", "))
-	}
-
-	return c, nil
+type GlobalConfig struct {
+	Version  int      `yaml:"version"`
+	Defaults Defaults `yaml:"defaults"`
 }
 
-func (c *Config) ResolveMasterKey() (string, error) {
-	if c.MasterKey != "" {
-		return c.MasterKey, nil
-	}
-	b, err := os.ReadFile(c.MasterKeyFile)
+func globalConfigPath() (string, error) {
+	dir, err := crypto.FoostashDir()
 	if err != nil {
-		return "", fmt.Errorf("read master key file: %w", err)
+		return "", err
 	}
-	return strings.TrimSpace(string(b)), nil
+	return filepath.Join(dir, "config.yaml"), nil
+}
+
+func LoadGlobal() (*GlobalConfig, error) {
+	path, err := globalConfigPath()
+	if err != nil {
+		return nil, err
+	}
+	b, err := os.ReadFile(path)
+	if err != nil {
+		if os.IsNotExist(err) {
+			return defaultGlobalConfig(), nil
+		}
+		return nil, fmt.Errorf("read global config: %w", err)
+	}
+	var cfg GlobalConfig
+	if err := yaml.Unmarshal(b, &cfg); err != nil {
+		return nil, fmt.Errorf("parse global config: %w", err)
+	}
+	applyGlobalDefaults(&cfg)
+	return &cfg, nil
+}
+
+func SaveGlobal(cfg *GlobalConfig) error {
+	path, err := globalConfigPath()
+	if err != nil {
+		return err
+	}
+	if err := os.MkdirAll(filepath.Dir(path), 0700); err != nil {
+		return fmt.Errorf("create config dir: %w", err)
+	}
+	b, err := yaml.Marshal(cfg)
+	if err != nil {
+		return fmt.Errorf("marshal global config: %w", err)
+	}
+	return os.WriteFile(path, b, 0600)
+}
+
+func defaultGlobalConfig() *GlobalConfig {
+	return &GlobalConfig{
+		Version: 1,
+		Defaults: Defaults{
+			Env:    "dev",
+			Format: "dotenv",
+		},
+	}
+}
+
+func applyGlobalDefaults(cfg *GlobalConfig) {
+	if cfg.Defaults.Env == "" {
+		cfg.Defaults.Env = "dev"
+	}
+	if cfg.Defaults.Format == "" {
+		cfg.Defaults.Format = "dotenv"
+	}
 }
