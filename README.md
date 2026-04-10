@@ -1,65 +1,158 @@
 # Foostash
 
-An open-source, developer-first secrets and environment manager. Replace `.env` files with a centralized, encrypted store you interact with via CLI and SDKs.
+An open-source, developer-first secrets and environment manager. CLI-only, local-first, per-project and global config. Replaces `.env` files with an encrypted, versioned secrets store.
 
-## Quickstart (self-hosted with Docker)
+## Why Foostash?
+
+| Pain Point | Foostash Solution |
+|-----------|---------------|
+| `.env` files committed to git | Encrypted local store, never plaintext on disk |
+| No way to compare environments | `foostash diff dev staging` |
+| Sharing secrets over Slack/email | Export/import password-protected bundles |
+| Different `.env` per environment | One command: `foostash pull --env prod` |
+| No version history | Every change is versioned locally |
+
+## Installation
+
+### Binary (recommended)
+
+Download from [releases](https://github.com/Omotolani98/foostash/releases):
 
 ```bash
-export FOOSTASH_MASTER_KEY=$(openssl rand -base64 32)
-export FOOSTASH_JWT_SECRET=$(openssl rand -base64 32)
+# macOS
+brew install foostash/tap/foostash
 
-docker compose up -d --build
-docker compose exec foostash foostash migrate up
+# Linux
+curl -sL https://foostash.sh | bash
+
+# Windows (PowerShell)
+irm https://foostash.sh | iex
 ```
 
-The API is now listening on `http://localhost:8400`.
-
-## Quickstart (local dev without Docker)
-
-```bash
-export FOOSTASH_DB_URL="postgres://foostash:foostash@localhost:5432/foostash?sslmode=disable"
-export FOOSTASH_JWT_SECRET="$(openssl rand -base64 32)"
-export FOOSTASH_MASTER_KEY="$(go run ./cmd/server genkey)"
-export FOOSTASH_MIGRATIONS_DIR="./migrations"
-
-go run ./cmd/server migrate up
-go run ./cmd/server serve
-```
-
-## CLI usage
+### Build from source
 
 ```bash
 go build -o foostash ./cmd/foostash
-
-./foostash register              # create org + user, saves token to ~/.foostash/config.yaml
-./foostash init --project myapp  # writes .foostash.yaml
-./foostash set DB_HOST=localhost DB_PORT=5432 --env dev
-./foostash pull --env dev
-./foostash pull --env dev --format dotenv > .env
-./foostash run --env dev -- go run main.go
+./foostash --help
 ```
 
-## Server commands
+## Quick Start
 
+```bash
+# Initialize a project
+foostash init --project myapp
+# Creates .foostash.yaml
+
+# Set secrets
+foostash set DB_HOST=localhost DB_PORT=5432 --env dev
+foostash set STRIPE_KEY=sk_test_xxx --env prod --secret
+
+# Pull secrets (dotenv format)
+foostash pull --env dev
+# DB_HOST=localhost
+# DB_PORT=5432
+
+# Run with secrets injected
+foostash run --env dev -- go run main.go
 ```
-foostash serve           Run the HTTP API server
-foostash migrate up      Apply pending migrations
-foostash migrate down N  Revert N migrations
-foostash genkey          Generate a base64 AES-256 master key
+
+## Commands
+
+| Command | Description |
+|---------|------------|
+| `foostash init` | Initialize a project |
+| `foostash set KEY=VALUE...` | Set secrets |
+| `foostash get KEY` | Get a secret |
+| `foostash delete KEY` | Delete a secret |
+| `foostash pull` | Pull secrets as env vars |
+| `foostash run -- CMD` | Run command with secrets |
+| `foostash diff ENV1 ENV2` | Compare two environments |
+| `foostash envs` | List environments |
+| `foostash envs create NAME` | Create environment |
+| `foostash envs clone SRC DEST` | Clone environment |
+| `foostash keys` | List keys in env |
+| `foostash history KEY` | Show version history |
+| `foostash rollback KEY --version N` | Rollback to version |
+| `foostash import FILE` | Import from .env or .foostash bundle |
+| `foostash export` | Export password-protected bundle |
+
+## Examples
+
+### Compare environments
+
+```bash
+$ foostash diff dev prod
+
+  Key          dev              prod
+  ─────────────────────────────────────
++ SENTRY_DSN   —                dsn://...
+- DEBUG_MODE   true             —
+~ DB_HOST      localhost        prod-db.internal
+= APP_NAME     myapp            myapp
 ```
 
-## Environment variables
+### Export & share with teammate
 
-| Variable | Description |
-|---|---|
-| `FOOSTASH_PORT` | HTTP port (default: 8400) |
-| `FOOSTASH_DB_URL` | Postgres DSN (required) |
-| `FOOSTASH_REDIS_URL` | Redis URL (optional in Phase 1) |
-| `FOOSTASH_MASTER_KEY` | Base64 32-byte AES key (required unless file set) |
-| `FOOSTASH_MASTER_KEY_FILE` | Path to file containing the master key |
-| `FOOSTASH_JWT_SECRET` | HMAC secret for dashboard JWTs (required) |
-| `FOOSTASH_MIGRATIONS_DIR` | Path to migrations directory (default: `./migrations`) |
+```bash
+# Teammate A: Export encrypted bundle
+foostash export --env prod
+# Enter encryption password: ********
 
-## Status
+# Teammate B: Import bundle
+foostash import prod-prod.foostash --env prod
+# Enter decryption password: ********
+```
 
-Phase 1 (core OSS): API server with auth + projects + environments + secrets, CLI with login/init/set/pull/run, AES-256-GCM encryption at rest, raw-SQL Postgres store, self-host via Docker Compose.
+### Version rollback
+
+```bash
+$ foostash history DB_HOST --env prod
+  Version  Value              Set At
+  ────────────────────────────────────
+  3        prod-db.internal   2026-04-09 14:30
+  2        staging-db       2026-04-05 09:15
+  1        localhost      2026-04-01 10:00
+
+$ foostash rollback DB_HOST --env prod --version 2
+rolled back DB_HOST to version 2
+```
+
+## Configuration
+
+### Global config: `~/.foostash/config.yaml`
+
+```yaml
+version: 1
+defaults:
+  env: dev
+  format: dotenv
+```
+
+### Project config: `.foostash.yaml` (committed to git)
+
+```yaml
+project: myapp
+default_env: dev
+environments:
+  - dev
+  - staging
+  - prod
+```
+
+### Master key
+
+Foostash auto-generates `~/.foostash/master.key` on first run. Override with:
+
+```bash
+export FOOSTASH_MASTER_KEY="base64-encoded-32-byte-key"
+```
+
+## Architecture
+
+Secrets are stored as AES-256-GCM encrypted JSON files in `~/.foostash/projects/{project}/{env}.enc`. Each file contains current values and full version history per key (capped at 50 versions).
+
+No server. No database. No account. Everything is local.
+
+## License
+
+MIT

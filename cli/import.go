@@ -2,27 +2,61 @@ package cli
 
 import (
 	"bufio"
+	"encoding/json"
 	"fmt"
 	"os"
 	"strings"
 
+	"github.com/Omotolani98/foostash/internal/crypto"
 	"github.com/spf13/cobra"
 )
 
 func newImportCmd(app *App) *cobra.Command {
 	var envFlag string
 	var global bool
+	var password string
 
 	cmd := &cobra.Command{
 		Use:   "import FILE",
-		Short: "Import secrets from a .env file",
+		Short: "Import secrets from a .env file or encrypted .foostash bundle",
 		Args:  cobra.ExactArgs(1),
 		RunE: func(cmd *cobra.Command, args []string) error {
 			filePath := args[0]
 
-			pairs, err := parseDotenvFile(filePath)
-			if err != nil {
-				return fmt.Errorf("parse file: %w", err)
+			isBundle := strings.HasSuffix(filePath, ".foostash")
+			var pairs map[string]string
+			var bundle exportBundle
+
+			if isBundle {
+				data, err := os.ReadFile(filePath)
+				if err != nil {
+					return fmt.Errorf("read file: %w", err)
+				}
+
+				if password == "" {
+					password = promptPassword("Enter decryption password: ")
+					if password == "" {
+						return fmt.Errorf("password is required for encrypted bundles")
+					}
+				}
+
+				plaintext, err := crypto.DecryptWithPassword(data, password)
+				if err != nil {
+					return fmt.Errorf("decrypt bundle: %w (check password and try again)", err)
+				}
+
+				if err := json.Unmarshal(plaintext, &bundle); err != nil {
+					return fmt.Errorf("parse bundle: %w", err)
+				}
+				pairs = bundle.Secrets
+
+				fmt.Printf("importing bundle for %s/%s\n", bundle.Project, bundle.Env)
+			} else {
+				var err error
+				pairs, err = parseDotenvFile(filePath)
+				if err != nil {
+					return fmt.Errorf("parse file: %w", err)
+				}
 			}
 
 			if len(pairs) == 0 {
@@ -44,7 +78,12 @@ func newImportCmd(app *App) *cobra.Command {
 			}
 			env := envFlag
 			if env == "" {
-				env = proj.DefaultEnv
+				if isBundle {
+					env = bundle.Env
+				}
+				if env == "" {
+					env = proj.DefaultEnv
+				}
 			}
 
 			if err := app.Secrets.Set(proj.Project, env, pairs); err != nil {
@@ -56,6 +95,7 @@ func newImportCmd(app *App) *cobra.Command {
 	}
 	cmd.Flags().StringVarP(&envFlag, "env", "e", "", "Target environment")
 	cmd.Flags().BoolVarP(&global, "global", "g", false, "Import as global secrets")
+	cmd.Flags().StringVar(&password, "password", "", "Decryption password (prompts if not provided)")
 	return cmd
 }
 
@@ -73,7 +113,6 @@ func parseDotenvFile(path string) (map[string]string, error) {
 		if line == "" || strings.HasPrefix(line, "#") {
 			continue
 		}
-		// strip "export " prefix
 		line = strings.TrimPrefix(line, "export ")
 
 		parts := strings.SplitN(line, "=", 2)
@@ -83,7 +122,6 @@ func parseDotenvFile(path string) (map[string]string, error) {
 		key := strings.TrimSpace(parts[0])
 		value := strings.TrimSpace(parts[1])
 
-		// strip surrounding quotes
 		if len(value) >= 2 {
 			if (value[0] == '"' && value[len(value)-1] == '"') ||
 				(value[0] == '\'' && value[len(value)-1] == '\'') {

@@ -3,17 +3,18 @@ package cli
 import (
 	"encoding/json"
 	"fmt"
+	"os"
 
-	"github.com/Omotolani98/foostash/internal/store"
+	"github.com/Omotolani98/foostash/internal/crypto"
 	"github.com/spf13/cobra"
 )
 
 func newExportCmd(app *App) *cobra.Command {
-	var envFlag, outFile string
+	var envFlag, outFile, password string
 
 	cmd := &cobra.Command{
 		Use:   "export",
-		Short: "Export encrypted bundle for sharing",
+		Short: "Export password-protected bundle for sharing",
 		RunE: func(cmd *cobra.Command, args []string) error {
 			proj, err := loadProjectConfig()
 			if err != nil {
@@ -35,38 +36,43 @@ func newExportCmd(app *App) *cobra.Command {
 				Secrets: secrets,
 			}
 
-			b, err := json.Marshal(bundle)
+			bundleJSON, err := json.Marshal(bundle)
 			if err != nil {
 				return fmt.Errorf("marshal bundle: %w", err)
 			}
 
-			// encrypt the bundle using the store
-			path, err := store.EnvPath(proj.Project, env)
-			if err != nil {
-				return err
+			if password == "" {
+				password = promptPassword("Enter encryption password: ")
+				if password == "" {
+					return fmt.Errorf("password is required")
+				}
+				confirm := promptPassword("Confirm password: ")
+				if confirm != password {
+					return fmt.Errorf("passwords do not match")
+				}
 			}
-			_ = path // we just need the store's engine
+
+			encrypted, err := crypto.EncryptWithPassword(bundleJSON, password)
+			if err != nil {
+				return fmt.Errorf("encrypt bundle: %w", err)
+			}
 
 			if outFile == "" {
 				outFile = fmt.Sprintf("%s-%s.foostash", proj.Project, env)
 			}
 
-			// use the store to create a temporary secret file, then export as encrypted
-			sf := store.NewSecretFile()
-			for k, v := range secrets {
-				sf.Secrets[k] = store.SecretEntry{Value: v}
-			}
-			if err := app.Store.Save(outFile, sf); err != nil {
+			if err := os.WriteFile(outFile, encrypted, 0600); err != nil {
 				return fmt.Errorf("write export: %w", err)
 			}
 
-			_ = b // bundle JSON used for future format; for now we export as .enc format
 			fmt.Printf("exported %d secret(s) to %s\n", len(secrets), outFile)
+			fmt.Println("Share this file securely — recipient needs the password to import.")
 			return nil
 		},
 	}
 	cmd.Flags().StringVarP(&envFlag, "env", "e", "", "Target environment")
 	cmd.Flags().StringVarP(&outFile, "out", "o", "", "Output file (default: PROJECT-ENV.foostash)")
+	cmd.Flags().StringVar(&password, "password", "", "Encryption password (prompts if not provided)")
 	return cmd
 }
 

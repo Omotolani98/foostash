@@ -34,6 +34,6 @@ func newRunCmd(app *App) *cobra.Command {
 		},
 	}
 	cmd.Flags().StringVarP(&envFlag, "env", "e", "", "Target environment")
-	cmd.Flags().BoolVar(&withGlobals, "with-globals", true, "Include global secrets (default: true)")
+	cmd.Flags().BoolVar(&withGlobals, "with-globals", false, "Include global secrets")
 	return cmd
 }
