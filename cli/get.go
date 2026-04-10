@@ -3,18 +3,16 @@ package cli
 import (
 	"fmt"
 
-	"github.com/Omotolani98/foostash/internal/runner"
 	"github.com/spf13/cobra"
 )
 
-func newRunCmd(app *App) *cobra.Command {
+func newGetCmd(app *App) *cobra.Command {
 	var envFlag string
-	var withGlobals bool
 
 	cmd := &cobra.Command{
-		Use:   "run -- command [args...]",
-		Short: "Run a command with secrets injected as env vars",
-		Args:  cobra.MinimumNArgs(1),
+		Use:   "get KEY",
+		Short: "Get a single secret value",
+		Args:  cobra.ExactArgs(1),
 		RunE: func(cmd *cobra.Command, args []string) error {
 			proj, err := loadProjectConfig()
 			if err != nil {
@@ -25,15 +23,14 @@ func newRunCmd(app *App) *cobra.Command {
 				env = proj.DefaultEnv
 			}
 
-			secrets, err := app.Secrets.Pull(proj.Project, env, withGlobals)
+			val, err := app.Secrets.Get(proj.Project, env, args[0])
 			if err != nil {
 				return err
 			}
-
-			return runner.Exec(args, secrets)
+			fmt.Println(val)
+			return nil
 		},
 	}
 	cmd.Flags().StringVarP(&envFlag, "env", "e", "", "Target environment")
-	cmd.Flags().BoolVar(&withGlobals, "with-globals", true, "Include global secrets (default: true)")
 	return cmd
 }
