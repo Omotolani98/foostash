@@ -14,9 +14,17 @@ type Defaults struct {
 	Format string `yaml:"format"`
 }
 
+type Identity struct {
+	Email          string `yaml:"email"`
+	SSHKeyPath     string `yaml:"ssh_key_path"`
+	KeyFingerprint string `yaml:"key_fingerprint"`
+}
+
 type GlobalConfig struct {
-	Version  int      `yaml:"version"`
-	Defaults Defaults `yaml:"defaults"`
+	Version  int       `yaml:"version"`
+	Defaults Defaults  `yaml:"defaults"`
+	Server   string    `yaml:"server,omitempty"`
+	Identity *Identity `yaml:"identity,omitempty"`
 }
 
 func globalConfigPath() (string, error) {

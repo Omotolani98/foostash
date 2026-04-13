@@ -1,19 +1,18 @@
 package cli
 
 import (
+	"context"
 	"fmt"
-	"os"
 
 	"github.com/Omotolani98/foostash/internal/config"
-	"github.com/Omotolani98/foostash/internal/crypto"
 	"github.com/spf13/cobra"
 )
 
 func newInitCmd() *cobra.Command {
-	var project, defaultEnv string
+	var project, sshKey string
 	cmd := &cobra.Command{
 		Use:   "init",
-		Short: "Initialize a project in the current directory",
+		Short: "Initialize a project on the configured foostash server",
 		RunE: func(cmd *cobra.Command, args []string) error {
 			if project == "" {
 				project = promptLine("Project name: ")
@@ -21,35 +20,37 @@ func newInitCmd() *cobra.Command {
 			if project == "" {
 				return fmt.Errorf("project name is required")
 			}
-			if defaultEnv == "" {
-				defaultEnv = "dev"
-			}
 
-			// create project directory under ~/.foostash/projects/
-			dir, err := crypto.ProjectsDir()
+			client, _, err := serverClient(sshKey)
 			if err != nil {
 				return err
 			}
-			projDir := dir + "/" + project
-			if err := os.MkdirAll(projDir, 0700); err != nil {
-				return fmt.Errorf("create project dir: %w", err)
+
+			var resp struct {
+				ID        string `json:"id"`
+				Slug      string `json:"slug"`
+				Name      string `json:"name"`
+				CreatedAt string `json:"created_at"`
+			}
+			req := map[string]string{"name": project}
+			if err := client.Do(context.Background(), "POST", "/v1/projects", req, &resp); err != nil {
+				return err
 			}
 
-			// write .foostash.yaml
 			cfg := &config.ProjectConfig{
-				Project:      project,
-				DefaultEnv:   defaultEnv,
-				Environments: []string{defaultEnv},
+				Project:      resp.Slug,
+				DefaultEnv:   "dev",
+				Environments: []string{"dev"},
 			}
 			if err := config.SaveProject(".", cfg); err != nil {
 				return err
 			}
 
-			fmt.Printf("initialized .foostash.yaml for project=%s env=%s\n", project, defaultEnv)
+			fmt.Printf("created project=%s (name=%q)\n", resp.Slug, resp.Name)
 			return nil
 		},
 	}
 	cmd.Flags().StringVar(&project, "project", "", "Project name")
-	cmd.Flags().StringVar(&defaultEnv, "env", "", "Default environment (default: dev)")
+	cmd.Flags().StringVar(&sshKey, "ssh-key", "", "Path to SSH private key (default: ~/.ssh/id_ed25519)")
 	return cmd
 }

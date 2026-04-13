@@ -33,7 +33,9 @@ func NewRootCmd() *cobra.Command {
 		Version: fmt.Sprintf("%s (commit %s, built %s)", Version, Commit, Date),
 		PersistentPreRunE: func(cmd *cobra.Command, args []string) error {
 			// skip init for commands that don't need encryption
-			if cmd.Name() == "init" || cmd.Name() == "help" || cmd.Name() == "version" || cmd.Name() == "completion" {
+			switch cmd.Name() {
+			case "init", "help", "version", "completion",
+				"register", "login", "join", "admin", "invite":
 				return nil
 			}
 
@@ -69,6 +71,10 @@ func NewRootCmd() *cobra.Command {
 		newRollbackCmd(&app),
 		newImportCmd(&app),
 		newExportCmd(&app),
+		newRegisterCmd(),
+		newLoginCmd(),
+		newJoinCmd(),
+		newAdminCmd(),
 	)
 
 	return root
