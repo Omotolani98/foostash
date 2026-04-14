@@ -1,6 +1,7 @@
 package cli
 
 import (
+	"context"
 	"fmt"
 	"strings"
 
@@ -11,6 +12,8 @@ func newSetCmd(app *App) *cobra.Command {
 	var envFlag string
 	var global bool
 	var secret bool
+	var remote bool
+	var sshKey string
 
 	cmd := &cobra.Command{
 		Use:   "set KEY=VALUE [KEY=VALUE ...]",
@@ -37,6 +40,9 @@ func newSetCmd(app *App) *cobra.Command {
 			}
 
 			if global {
+				if remote {
+					return fmt.Errorf("--global and --remote cannot be combined")
+				}
 				if err := app.Secrets.SetGlobal(pairs); err != nil {
 					return err
 				}
@@ -53,6 +59,21 @@ func newSetCmd(app *App) *cobra.Command {
 				env = proj.DefaultEnv
 			}
 
+			if remote {
+				client, _, err := serverClient(sshKey)
+				if err != nil {
+					return err
+				}
+				ctx := context.Background()
+				for k, v := range pairs {
+					if _, err := remoteSet(ctx, client, app.Crypto, proj.Project, env, k, v); err != nil {
+						return fmt.Errorf("set %s: %w", k, err)
+					}
+				}
+				fmt.Printf("set %d remote secret(s) in %s/%s\n", len(pairs), proj.Project, env)
+				return nil
+			}
+
 			if err := app.Secrets.Set(proj.Project, env, pairs); err != nil {
 				return err
 			}
@@ -63,5 +84,7 @@ func newSetCmd(app *App) *cobra.Command {
 	cmd.Flags().StringVarP(&envFlag, "env", "e", "", "Target environment")
 	cmd.Flags().BoolVarP(&global, "global", "g", false, "Set as global secret")
 	cmd.Flags().BoolVar(&secret, "secret", false, "Prompt for value with hidden input")
+	cmd.Flags().BoolVar(&remote, "remote", false, "Store on the configured server (encrypted locally, synced across machines)")
+	cmd.Flags().StringVar(&sshKey, "ssh-key", "", "Path to SSH private key (default: ~/.ssh/id_ed25519)")
 	return cmd
 }

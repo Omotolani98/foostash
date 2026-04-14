@@ -17,6 +17,7 @@ type Deps struct {
 	Projects *service.Projects
 	Users    *service.Users
 	Audit    *service.Audit
+	Secrets  *service.Secrets
 	Pool     *pgxpool.Pool
 	Version  string
 }
@@ -27,6 +28,7 @@ func NewRouter(d *Deps) http.Handler {
 	projects := &handlers.ProjectsHandler{Projects: d.Projects}
 	users := &handlers.UsersHandler{Users: d.Users}
 	audit := &handlers.AuditHandler{Audit: d.Audit}
+	secrets := &handlers.SecretsHandler{Secrets: d.Secrets}
 	health := &handlers.HealthHandler{Pool: d.Pool, Version: d.Version}
 	authMW := &middleware.Authenticator{Auth: d.Auth}
 	auditor := &middleware.Auditor{Service: d.Audit}
@@ -77,6 +79,17 @@ func NewRouter(d *Deps) http.Handler {
 				Post("/{slug}/envs/{env}/clone", projects.CloneEnv)
 			r.With(middleware.RequireRole("admin"), auditor.Record("env.delete", "environment")).
 				Delete("/{slug}/envs/{env}", projects.DeleteEnv)
+
+			// Secrets: any authenticated org member can read/write within their org.
+			r.Get("/{slug}/envs/{env}/secrets", secrets.List)
+			r.Get("/{slug}/envs/{env}/secrets/{key}", secrets.Get)
+			r.Get("/{slug}/envs/{env}/secrets/{key}/history", secrets.History)
+			r.With(auditor.Record("secret.set", "secret")).
+				Put("/{slug}/envs/{env}/secrets/{key}", secrets.Set)
+			r.With(auditor.Record("secret.delete", "secret")).
+				Delete("/{slug}/envs/{env}/secrets/{key}", secrets.Delete)
+			r.With(auditor.Record("secret.rollback", "secret")).
+				Post("/{slug}/envs/{env}/secrets/{key}/rollback", secrets.Rollback)
 		})
 	})
 

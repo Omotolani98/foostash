@@ -68,6 +68,7 @@ type App struct {
 	Store   *store.Store
 	Secrets *secrets.Service
 	Envs    *envs.Manager
+	Crypto  *crypto.Engine
 }
 
 func NewRootCmd() *cobra.Command {
@@ -103,6 +104,7 @@ func NewRootCmd() *cobra.Command {
 			app.Store = store.New(engine)
 			app.Secrets = secrets.NewService(app.Store)
 			app.Envs = envs.NewManager(app.Store)
+			app.Crypto = engine
 			return nil
 		},
 		SilenceUsage: true,

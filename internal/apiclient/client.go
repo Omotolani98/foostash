@@ -51,7 +51,13 @@ func (c *Client) Do(ctx context.Context, method, path string, reqBody any, respO
 		req.Header.Set("Content-Type", "application/json")
 	}
 
-	sig, ts, err := sshauth.Sign(c.signer, method, path, bodyBytes)
+	// Server verifies against r.URL.Path (query stripped), so sign only the
+	// path portion. Anything past "?" is excluded from the canonical payload.
+	signPath := path
+	if i := strings.IndexByte(signPath, '?'); i >= 0 {
+		signPath = signPath[:i]
+	}
+	sig, ts, err := sshauth.Sign(c.signer, method, signPath, bodyBytes)
 	if err != nil {
 		return err
 	}

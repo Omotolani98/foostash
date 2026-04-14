@@ -1,6 +1,7 @@
 package cli
 
 import (
+	"context"
 	"fmt"
 	"strings"
 
@@ -8,8 +9,8 @@ import (
 )
 
 func newDeleteCmd(app *App) *cobra.Command {
-	var envFlag string
-	var force bool
+	var envFlag, sshKey string
+	var force, remote bool
 
 	cmd := &cobra.Command{
 		Use:   "delete KEY",
@@ -34,6 +35,18 @@ func newDeleteCmd(app *App) *cobra.Command {
 				}
 			}
 
+			if remote {
+				client, _, err := serverClient(sshKey)
+				if err != nil {
+					return err
+				}
+				if err := remoteDelete(context.Background(), client, proj.Project, env, key); err != nil {
+					return err
+				}
+				fmt.Printf("deleted remote %q from %s/%s\n", key, proj.Project, env)
+				return nil
+			}
+
 			if err := app.Secrets.Delete(proj.Project, env, key); err != nil {
 				return err
 			}
@@ -43,5 +56,7 @@ func newDeleteCmd(app *App) *cobra.Command {
 	}
 	cmd.Flags().StringVarP(&envFlag, "env", "e", "", "Target environment")
 	cmd.Flags().BoolVar(&force, "force", false, "Skip confirmation prompt")
+	cmd.Flags().BoolVar(&remote, "remote", false, "Delete from the configured server")
+	cmd.Flags().StringVar(&sshKey, "ssh-key", "", "Path to SSH private key (default: ~/.ssh/id_ed25519)")
 	return cmd
 }

@@ -67,6 +67,8 @@ func WriteServiceError(w http.ResponseWriter, err error) {
 		WriteError(w, http.StatusNotFound, "env_not_found", err.Error())
 	case errors.Is(err, service.ErrEnvExists):
 		WriteError(w, http.StatusConflict, "env_exists", err.Error())
+	case errors.Is(err, service.ErrSecretNotFound):
+		WriteError(w, http.StatusNotFound, "secret_not_found", err.Error())
 	case errors.Is(err, sshauth.ErrExpiredRequest):
 		WriteError(w, http.StatusUnauthorized, "expired_request", err.Error())
 	case errors.Is(err, sshauth.ErrBadSignature), errors.Is(err, sshauth.ErrBadTimestamp):

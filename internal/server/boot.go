@@ -34,6 +34,7 @@ func Boot(ctx context.Context, pgURL, listenAddr, version string) error {
 		Projects: service.NewProjects(repos),
 		Users:    service.NewUsers(repos),
 		Audit:    service.NewAudit(repos),
+		Secrets:  service.NewSecrets(repos),
 		Pool:     pool,
 		Version:  version,
 	}

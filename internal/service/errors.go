@@ -18,4 +18,5 @@ var (
 	ErrEnvExists         = errors.New("environment already exists")
 	ErrUserNotFound      = errors.New("user not found")
 	ErrUserRevoked       = errors.New("user revoked")
+	ErrSecretNotFound    = errors.New("secret not found")
 )
