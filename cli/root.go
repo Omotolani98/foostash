@@ -3,6 +3,7 @@ package cli
 import (
 	"fmt"
 	"os"
+	"regexp"
 	"runtime/debug"
 
 	"github.com/Omotolani98/foostash/internal/crypto"
@@ -44,8 +45,23 @@ func buildInfo() (version, commit, date string) {
 			}
 		}
 	}
+	// When installed via `go install pkg@rev`, the module proxy strips VCS
+	// info, but the pseudo-version still encodes the timestamp and commit:
+	//   vX.Y.Z-pre.0.YYYYMMDDHHMMSS-abcdef123456
+	if commit == "none" || date == "unknown" {
+		if m := pseudoVersionRE.FindStringSubmatch(info.Main.Version); m != nil {
+			if date == "unknown" {
+				date = m[1]
+			}
+			if commit == "none" {
+				commit = m[2]
+			}
+		}
+	}
 	return
 }
+
+var pseudoVersionRE = regexp.MustCompile(`(\d{14})-([0-9a-f]{12})$`)
 
 // App holds shared dependencies for all CLI commands.
 type App struct {
