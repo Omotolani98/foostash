@@ -149,13 +149,22 @@ export FOOSTASH_MASTER_KEY="base64-encoded-32-byte-key"
 
 ## Self-Host with Docker
 
-Run the foostash HTTP server and Postgres with one command:
+Pull the prebuilt image from GHCR and start Postgres + the server:
 
 ```bash
+docker compose pull
 docker compose up -d
 ```
 
-The API listens on `:8400`. Data persists in the `foostash-pgdata` volume. Override the defaults via env vars (`FOOSTASH_PG_URL`, `FOOSTASH_LISTEN_ADDR`). To run the server directly from source:
+Pin a specific release with `FOOSTASH_IMAGE_TAG=v0.2.2 docker compose up -d`. The API listens on `:8400` and data persists in the `foostash-pgdata` volume. Override defaults via `FOOSTASH_PG_URL` and `FOOSTASH_LISTEN_ADDR`.
+
+Build locally instead of pulling:
+
+```bash
+docker compose up -d --build
+```
+
+Or run directly from source:
 
 ```bash
 make build && ./bin/foostash serve
