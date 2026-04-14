@@ -73,11 +73,15 @@ type App struct {
 func NewRootCmd() *cobra.Command {
 	var app App
 	version, commit, date := buildInfo()
+	versionStr := version
+	if commit != "none" || date != "unknown" {
+		versionStr = fmt.Sprintf("%s (commit %s, built %s)", version, commit, date)
+	}
 
 	root := &cobra.Command{
 		Use:     "foostash",
 		Short:   "Foostash: encrypted secrets and environment manager",
-		Version: fmt.Sprintf("%s (commit %s, built %s)", version, commit, date),
+		Version: versionStr,
 		PersistentPreRunE: func(cmd *cobra.Command, args []string) error {
 			// skip init for commands that don't need encryption
 			switch cmd.Name() {
