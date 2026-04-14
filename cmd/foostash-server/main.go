@@ -19,7 +19,7 @@ func main() {
 	ctx, cancel := signal.NotifyContext(context.Background(), os.Interrupt, syscall.SIGTERM)
 	defer cancel()
 
-	if err := server.Boot(ctx, pgURL, listenAddr); err != nil {
+	if err := server.Boot(ctx, pgURL, listenAddr, ""); err != nil {
 		slog.Error("server exited", "err", err)
 		os.Exit(1)
 	}

@@ -22,7 +22,9 @@ RUN go build \
       -X github.com/Omotolani98/foostash/cli.Date=${DATE}" \
     -o /out/foostash ./cmd/foostash
 
-FROM gcr.io/distroless/static-debian12:nonroot
+FROM alpine:3.20
+RUN apk add --no-cache ca-certificates wget && adduser -D -u 10001 foostash
 COPY --from=builder /out/foostash /usr/local/bin/foostash
+USER foostash
 EXPOSE 8400
 ENTRYPOINT ["/usr/local/bin/foostash", "serve"]

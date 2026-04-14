@@ -26,6 +26,12 @@ services:
       FOOSTASH_LISTEN_ADDR: ":8400"
     ports:
       - "8400:8400"
+    healthcheck:
+      test: ["CMD", "wget", "-qO-", "http://localhost:8400/v1/health"]
+      interval: 10s
+      timeout: 3s
+      retries: 5
+      start_period: 10s
     restart: unless-stopped
 
 volumes:

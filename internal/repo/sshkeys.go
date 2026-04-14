@@ -52,14 +52,14 @@ func (r *SSHKeyRepo) Insert(ctx context.Context, q Querier, userID uuid.UUID, pu
 func (r *SSHKeyRepo) GetByFingerprint(ctx context.Context, fingerprint string) (*KeyOwner, error) {
 	const sql = `
 		SELECT k.id, k.user_id, k.public_key, k.fingerprint, k.name, k.last_used_at, k.created_at,
-		       u.id, u.org_id, u.email, u.role, u.created_at, u.updated_at
+		       u.id, u.org_id, u.email, u.role, u.revoked_at, u.created_at, u.updated_at
 		FROM ssh_keys k
 		JOIN users u ON u.id = k.user_id
 		WHERE k.fingerprint = $1`
 	var out KeyOwner
 	err := r.pool.QueryRow(ctx, sql, fingerprint).Scan(
 		&out.Key.ID, &out.Key.UserID, &out.Key.PublicKey, &out.Key.Fingerprint, &out.Key.Name, &out.Key.LastUsedAt, &out.Key.CreatedAt,
-		&out.User.ID, &out.User.OrgID, &out.User.Email, &out.User.Role, &out.User.CreatedAt, &out.User.UpdatedAt,
+		&out.User.ID, &out.User.OrgID, &out.User.Email, &out.User.Role, &out.User.RevokedAt, &out.User.CreatedAt, &out.User.UpdatedAt,
 	)
 	if errors.Is(err, pgx.ErrNoRows) {
 		return nil, ErrNotFound
