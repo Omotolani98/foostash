@@ -12,8 +12,8 @@ import (
 )
 
 // Boot connects to Postgres, applies migrations, wires services, and runs the
-// HTTP server until ctx is canceled.
-func Boot(ctx context.Context, pgURL, listenAddr string) error {
+// HTTP server until ctx is canceled. version is surfaced on /v1/health.
+func Boot(ctx context.Context, pgURL, listenAddr, version string) error {
 	connectCtx, cancel := context.WithTimeout(ctx, 10*time.Second)
 	defer cancel()
 
@@ -32,6 +32,10 @@ func Boot(ctx context.Context, pgURL, listenAddr string) error {
 		Auth:     service.NewAuth(repos),
 		Invites:  service.NewInvites(repos),
 		Projects: service.NewProjects(repos),
+		Users:    service.NewUsers(repos),
+		Audit:    service.NewAudit(repos),
+		Pool:     pool,
+		Version:  version,
 	}
 
 	return New(listenAddr, deps).Run(ctx)

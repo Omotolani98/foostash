@@ -4,6 +4,7 @@ package middleware
 import (
 	"bytes"
 	"context"
+	"errors"
 	"io"
 	"net/http"
 
@@ -67,6 +68,10 @@ func (a *Authenticator) RequireAuth(next http.Handler) http.Handler {
 
 		actx, err := a.Auth.ResolveSSHKey(r.Context(), fingerprint)
 		if err != nil {
+			if errors.Is(err, service.ErrUserRevoked) {
+				writeAuthError(w, "user_revoked", "user revoked", http.StatusUnauthorized)
+				return
+			}
 			writeAuthError(w, "unknown_key", "unknown ssh key", http.StatusUnauthorized)
 			return
 		}

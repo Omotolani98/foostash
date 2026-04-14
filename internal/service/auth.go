@@ -119,6 +119,9 @@ func (a *Auth) ResolveSSHKey(ctx context.Context, fingerprint string) (*AuthCont
 		}
 		return nil, err
 	}
+	if owner.User.RevokedAt != nil {
+		return nil, ErrUserRevoked
+	}
 	_ = a.repos.SSHKeys.TouchLastUsed(ctx, owner.Key.ID)
 	return &AuthContext{
 		UserID: owner.User.ID,

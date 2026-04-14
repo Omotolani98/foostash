@@ -16,4 +16,6 @@ var (
 	ErrProjectExists     = errors.New("project already exists")
 	ErrEnvNotFound       = errors.New("environment not found")
 	ErrEnvExists         = errors.New("environment already exists")
+	ErrUserNotFound      = errors.New("user not found")
+	ErrUserRevoked       = errors.New("user revoked")
 )

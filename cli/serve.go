@@ -26,7 +26,8 @@ func newServeCmd() *cobra.Command {
 			ctx, cancel := signal.NotifyContext(context.Background(), os.Interrupt, syscall.SIGTERM)
 			defer cancel()
 
-			return server.Boot(ctx, pgURL, addr)
+			version, _, _ := buildInfo()
+			return server.Boot(ctx, pgURL, addr, version)
 		},
 	}
 	cmd.Flags().StringVar(&addr, "addr", "", "HTTP listen address (default $FOOSTASH_LISTEN_ADDR or :8400)")

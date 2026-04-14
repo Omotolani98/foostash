@@ -21,6 +21,7 @@ type Repos struct {
 	Invites      *InviteRepo
 	Projects     *ProjectRepo
 	Environments *EnvironmentRepo
+	Audit        *AuditRepo
 	Pool         *pgxpool.Pool
 }
 
@@ -33,6 +34,7 @@ func New(pool *pgxpool.Pool) *Repos {
 		Invites:      &InviteRepo{pool: pool},
 		Projects:     &ProjectRepo{pool: pool},
 		Environments: &EnvironmentRepo{pool: pool},
+		Audit:        &AuditRepo{pool: pool},
 		Pool:         pool,
 	}
 }

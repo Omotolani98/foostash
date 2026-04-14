@@ -47,6 +47,10 @@ func WriteServiceError(w http.ResponseWriter, err error) {
 		WriteError(w, http.StatusConflict, "org_exists", err.Error())
 	case errors.Is(err, service.ErrUnknownKey):
 		WriteError(w, http.StatusUnauthorized, "unknown_key", err.Error())
+	case errors.Is(err, service.ErrUserRevoked):
+		WriteError(w, http.StatusUnauthorized, "user_revoked", err.Error())
+	case errors.Is(err, service.ErrUserNotFound):
+		WriteError(w, http.StatusNotFound, "user_not_found", err.Error())
 	case errors.Is(err, service.ErrInviteNotFound):
 		WriteError(w, http.StatusNotFound, "invite_not_found", err.Error())
 	case errors.Is(err, service.ErrInviteExpired):
