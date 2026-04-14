@@ -3,6 +3,7 @@ package cli
 import (
 	"fmt"
 	"os"
+	"runtime/debug"
 
 	"github.com/Omotolani98/foostash/internal/crypto"
 	"github.com/Omotolani98/foostash/internal/envs"
@@ -17,6 +18,35 @@ var (
 	Date    = "unknown"
 )
 
+// buildInfo returns version/commit/date, preferring ldflag values when set
+// and falling back to Go module build info (populated by `go install`).
+func buildInfo() (version, commit, date string) {
+	version, commit, date = Version, Commit, Date
+	info, ok := debug.ReadBuildInfo()
+	if !ok {
+		return
+	}
+	if version == "dev" && info.Main.Version != "" && info.Main.Version != "(devel)" {
+		version = info.Main.Version
+	}
+	for _, s := range info.Settings {
+		switch s.Key {
+		case "vcs.revision":
+			if commit == "none" && s.Value != "" {
+				commit = s.Value
+				if len(commit) > 7 {
+					commit = commit[:7]
+				}
+			}
+		case "vcs.time":
+			if date == "unknown" && s.Value != "" {
+				date = s.Value
+			}
+		}
+	}
+	return
+}
+
 // App holds shared dependencies for all CLI commands.
 type App struct {
 	Store   *store.Store
@@ -26,11 +56,12 @@ type App struct {
 
 func NewRootCmd() *cobra.Command {
 	var app App
+	version, commit, date := buildInfo()
 
 	root := &cobra.Command{
 		Use:     "foostash",
 		Short:   "Foostash: encrypted secrets and environment manager",
-		Version: fmt.Sprintf("%s (commit %s, built %s)", Version, Commit, Date),
+		Version: fmt.Sprintf("%s (commit %s, built %s)", version, commit, date),
 		PersistentPreRunE: func(cmd *cobra.Command, args []string) error {
 			// skip init for commands that don't need encryption
 			switch cmd.Name() {
