@@ -6,3 +6,6 @@ sdk
 dist
 *.md
 ARCHITECTURE.md
+bin
+*.enc
+.foostash

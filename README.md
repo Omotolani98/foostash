@@ -147,6 +147,20 @@ Foostash auto-generates `~/.foostash/master.key` on first run. Override with:
 export FOOSTASH_MASTER_KEY="base64-encoded-32-byte-key"
 ```
 
+## Self-Host with Docker
+
+Run the foostash HTTP server and Postgres with one command:
+
+```bash
+docker compose up -d
+```
+
+The API listens on `:8400`. Data persists in the `foostash-pgdata` volume. Override the defaults via env vars (`FOOSTASH_PG_URL`, `FOOSTASH_LISTEN_ADDR`). To run the server directly from source:
+
+```bash
+make build && ./bin/foostash serve
+```
+
 ## Architecture
 
 Secrets are stored as AES-256-GCM encrypted JSON files in `~/.foostash/projects/{project}/{env}.enc`. Each file contains current values and full version history per key (capped at 50 versions).

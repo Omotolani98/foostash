@@ -6,13 +6,8 @@ import (
 	"os"
 	"os/signal"
 	"syscall"
-	"time"
 
-	"github.com/Omotolani98/foostash/internal/migrations"
-	"github.com/Omotolani98/foostash/internal/repo"
 	"github.com/Omotolani98/foostash/internal/server"
-	"github.com/Omotolani98/foostash/internal/service"
-	"github.com/jackc/pgx/v5/pgxpool"
 )
 
 func main() {
@@ -24,29 +19,7 @@ func main() {
 	ctx, cancel := signal.NotifyContext(context.Background(), os.Interrupt, syscall.SIGTERM)
 	defer cancel()
 
-	connectCtx, connectCancel := context.WithTimeout(ctx, 10*time.Second)
-	defer connectCancel()
-	pool, err := pgxpool.New(connectCtx, pgURL)
-	if err != nil {
-		slog.Error("connect postgres", "err", err)
-		os.Exit(1)
-	}
-	defer pool.Close()
-
-	if err := migrations.Apply(ctx, pool); err != nil {
-		slog.Error("apply migrations", "err", err)
-		os.Exit(1)
-	}
-
-	repos := repo.New(pool)
-	deps := &server.Deps{
-		Auth:     service.NewAuth(repos),
-		Invites:  service.NewInvites(repos),
-		Projects: service.NewProjects(repos),
-	}
-
-	srv := server.New(listenAddr, deps)
-	if err := srv.Run(ctx); err != nil {
+	if err := server.Boot(ctx, pgURL, listenAddr); err != nil {
 		slog.Error("server exited", "err", err)
 		os.Exit(1)
 	}
