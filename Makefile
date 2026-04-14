@@ -6,10 +6,18 @@ LDFLAGS := -s -w \
 	-X github.com/Omotolani98/foostash/cli.Commit=$(COMMIT) \
 	-X github.com/Omotolani98/foostash/cli.Date=$(DATE)
 
-.PHONY: build test vet install clean
+.PHONY: build build-server run-server test vet install clean
 
 build:
 	go build -ldflags="$(LDFLAGS)" -o bin/foostash ./cmd/foostash
+
+build-server:
+	go build -ldflags="$(LDFLAGS)" -o bin/foostash-server ./cmd/foostash-server
+
+run-server:
+	FOOSTASH_PG_URL=$${FOOSTASH_PG_URL:-postgres://foostash:foostash@localhost:5432/foostash?sslmode=disable} \
+	FOOSTASH_LISTEN_ADDR=$${FOOSTASH_LISTEN_ADDR:-:8400} \
+	go run ./cmd/foostash-server
 
 test:
 	go test ./... -v

@@ -1,13 +1,15 @@
 package cli
 
 import (
+	"context"
 	"fmt"
 
 	"github.com/Omotolani98/foostash/internal/config"
 	"github.com/spf13/cobra"
 )
 
-func newEnvsCmd(app *App) *cobra.Command {
+func newEnvsCmd(_ *App) *cobra.Command {
+	var sshKey string
 	cmd := &cobra.Command{
 		Use:   "envs",
 		Short: "List environments for the current project",
@@ -16,33 +18,42 @@ func newEnvsCmd(app *App) *cobra.Command {
 			if err != nil {
 				return fmt.Errorf("no .foostash.yaml in current directory (run `foostash init` first)")
 			}
-
-			envs, err := app.Envs.List(proj.Project)
+			client, _, err := serverClient(sshKey)
 			if err != nil {
 				return err
 			}
-
-			if len(envs) == 0 {
+			var resp struct {
+				Environments []struct {
+					Slug      string `json:"slug"`
+					CreatedAt string `json:"created_at"`
+				} `json:"environments"`
+			}
+			path := fmt.Sprintf("/v1/projects/%s/envs", proj.Project)
+			if err := client.Do(context.Background(), "GET", path, nil, &resp); err != nil {
+				return err
+			}
+			if len(resp.Environments) == 0 {
 				fmt.Println("no environments found")
 				return nil
 			}
-			for _, e := range envs {
-				fmt.Println(e)
+			for _, e := range resp.Environments {
+				fmt.Println(e.Slug)
 			}
 			return nil
 		},
 	}
+	cmd.PersistentFlags().StringVar(&sshKey, "ssh-key", "", "Path to SSH private key (default: ~/.ssh/id_ed25519)")
 
 	cmd.AddCommand(
-		newEnvsCreateCmd(app),
-		newEnvsCloneCmd(app),
-		newEnvsDeleteCmd(app),
+		newEnvsCreateCmd(&sshKey),
+		newEnvsCloneCmd(&sshKey),
+		newEnvsDeleteCmd(&sshKey),
 	)
 
 	return cmd
 }
 
-func newEnvsCreateCmd(app *App) *cobra.Command {
+func newEnvsCreateCmd(sshKey *string) *cobra.Command {
 	return &cobra.Command{
 		Use:   "create NAME",
 		Short: "Create a new environment",
@@ -52,24 +63,27 @@ func newEnvsCreateCmd(app *App) *cobra.Command {
 			if err != nil {
 				return fmt.Errorf("no .foostash.yaml in current directory (run `foostash init` first)")
 			}
-
-			if err := app.Envs.Create(proj.Project, args[0]); err != nil {
+			client, _, err := serverClient(*sshKey)
+			if err != nil {
+				return err
+			}
+			path := fmt.Sprintf("/v1/projects/%s/envs", proj.Project)
+			req := map[string]string{"slug": args[0]}
+			if err := client.Do(context.Background(), "POST", path, req, nil); err != nil {
 				return err
 			}
 
-			// update .foostash.yaml environments list
 			proj.Environments = appendUnique(proj.Environments, args[0])
 			if err := config.SaveProject(".", proj); err != nil {
 				return fmt.Errorf("update .foostash.yaml: %w", err)
 			}
-
 			fmt.Printf("created environment %q\n", args[0])
 			return nil
 		},
 	}
 }
 
-func newEnvsCloneCmd(app *App) *cobra.Command {
+func newEnvsCloneCmd(sshKey *string) *cobra.Command {
 	return &cobra.Command{
 		Use:   "clone SOURCE DEST",
 		Short: "Clone an environment",
@@ -79,8 +93,13 @@ func newEnvsCloneCmd(app *App) *cobra.Command {
 			if err != nil {
 				return fmt.Errorf("no .foostash.yaml in current directory (run `foostash init` first)")
 			}
-
-			if err := app.Envs.Clone(proj.Project, args[0], args[1]); err != nil {
+			client, _, err := serverClient(*sshKey)
+			if err != nil {
+				return err
+			}
+			path := fmt.Sprintf("/v1/projects/%s/envs/%s/clone", proj.Project, args[0])
+			req := map[string]string{"dest": args[1]}
+			if err := client.Do(context.Background(), "POST", path, req, nil); err != nil {
 				return err
 			}
 
@@ -88,14 +107,13 @@ func newEnvsCloneCmd(app *App) *cobra.Command {
 			if err := config.SaveProject(".", proj); err != nil {
 				return fmt.Errorf("update .foostash.yaml: %w", err)
 			}
-
 			fmt.Printf("cloned %s → %s\n", args[0], args[1])
 			return nil
 		},
 	}
 }
 
-func newEnvsDeleteCmd(app *App) *cobra.Command {
+func newEnvsDeleteCmd(sshKey *string) *cobra.Command {
 	var force bool
 	cmd := &cobra.Command{
 		Use:   "delete NAME",
@@ -106,7 +124,6 @@ func newEnvsDeleteCmd(app *App) *cobra.Command {
 			if err != nil {
 				return fmt.Errorf("no .foostash.yaml in current directory (run `foostash init` first)")
 			}
-
 			if !force {
 				confirm := promptLine(fmt.Sprintf("Delete environment %q? This cannot be undone. (y/N): ", args[0]))
 				if confirm != "y" && confirm != "Y" {
@@ -114,17 +131,19 @@ func newEnvsDeleteCmd(app *App) *cobra.Command {
 					return nil
 				}
 			}
-
-			if err := app.Envs.Delete(proj.Project, args[0]); err != nil {
+			client, _, err := serverClient(*sshKey)
+			if err != nil {
+				return err
+			}
+			path := fmt.Sprintf("/v1/projects/%s/envs/%s", proj.Project, args[0])
+			if err := client.Do(context.Background(), "DELETE", path, nil, nil); err != nil {
 				return err
 			}
 
-			// remove from .foostash.yaml
 			proj.Environments = removeStr(proj.Environments, args[0])
 			if err := config.SaveProject(".", proj); err != nil {
 				return fmt.Errorf("update .foostash.yaml: %w", err)
 			}
-
 			fmt.Printf("deleted environment %q\n", args[0])
 			return nil
 		},
