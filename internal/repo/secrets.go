@@ -41,9 +41,15 @@ type SecretsRepo struct {
 func (r *SecretsRepo) Upsert(ctx context.Context, envID uuid.UUID, key string, ciphertext, nonce []byte, updatedBy uuid.UUID) (int, error) {
 	var version int
 	err := InTx(ctx, r.pool, func(tx pgx.Tx) error {
+		// Get current max version from history (if any) to handle re-insert after delete.
+		const maxVersionSQL = `
+			SELECT COALESCE(MAX(version), 0) FROM secret_history WHERE env_id = $1 AND key = $2`
+		if err := tx.QueryRow(ctx, maxVersionSQL, envID, key).Scan(&version); err != nil {
+			return fmt.Errorf("get max version: %w", err)
+		}
 		const upsertSQL = `
 			INSERT INTO secrets (env_id, key, ciphertext, nonce, version, updated_by, updated_at)
-			VALUES ($1, $2, $3, $4, 1, $5, now())
+			VALUES ($1, $2, $3, $4, $5, $6, now())
 			ON CONFLICT (env_id, key) WHERE deleted_at IS NULL
 			DO UPDATE SET
 				ciphertext = EXCLUDED.ciphertext,
@@ -52,7 +58,8 @@ func (r *SecretsRepo) Upsert(ctx context.Context, envID uuid.UUID, key string, c
 				updated_by = EXCLUDED.updated_by,
 				updated_at = now()
 			RETURNING version`
-		if err := tx.QueryRow(ctx, upsertSQL, envID, key, ciphertext, nonce, updatedBy).Scan(&version); err != nil {
+		newVersion := version + 1
+		if err := tx.QueryRow(ctx, upsertSQL, envID, key, ciphertext, nonce, newVersion, updatedBy).Scan(&version); err != nil {
 			return fmt.Errorf("upsert secret: %w", err)
 		}
 		const histSQL = `
