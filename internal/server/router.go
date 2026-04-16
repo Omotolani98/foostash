@@ -18,6 +18,7 @@ type Deps struct {
 	Users    *service.Users
 	Audit    *service.Audit
 	Secrets  *service.Secrets
+	Vault    *service.Vault
 	Pool     *pgxpool.Pool
 	Version  string
 }
@@ -29,6 +30,7 @@ func NewRouter(d *Deps) http.Handler {
 	users := &handlers.UsersHandler{Users: d.Users}
 	audit := &handlers.AuditHandler{Audit: d.Audit}
 	secrets := &handlers.SecretsHandler{Secrets: d.Secrets}
+	vault := &handlers.VaultHandler{Vault: d.Vault}
 	health := &handlers.HealthHandler{Pool: d.Pool, Version: d.Version}
 	authMW := &middleware.Authenticator{Auth: d.Auth}
 	auditor := &middleware.Auditor{Service: d.Audit}
@@ -90,6 +92,20 @@ func NewRouter(d *Deps) http.Handler {
 				Delete("/{slug}/envs/{env}/secrets/{key}", secrets.Delete)
 			r.With(auditor.Record("secret.rollback", "secret")).
 				Post("/{slug}/envs/{env}/secrets/{key}/rollback", secrets.Rollback)
+		})
+
+		// /v1/vault: org-wide shared secrets. Any org member can read; admins
+		// manage (service enforces RBAC too).
+		r.With(authMW.RequireAuth).Route("/vault", func(r chi.Router) {
+			r.Get("/", vault.List)
+			r.Get("/{key}", vault.Get)
+			r.Get("/{key}/history", vault.History)
+			r.With(middleware.RequireRole("admin"), auditor.Record("vault.set", "vault")).
+				Put("/{key}", vault.Set)
+			r.With(middleware.RequireRole("admin"), auditor.Record("vault.delete", "vault")).
+				Delete("/{key}", vault.Delete)
+			r.With(middleware.RequireRole("admin"), auditor.Record("vault.rollback", "vault")).
+				Post("/{key}/rollback", vault.Rollback)
 		})
 	})
 

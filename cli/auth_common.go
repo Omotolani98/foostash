@@ -6,19 +6,23 @@ import (
 	"os"
 
 	"github.com/Omotolani98/foostash/internal/apiclient"
+	"github.com/Omotolani98/foostash/internal/config"
 	"github.com/Omotolani98/foostash/internal/sshauth"
 	"golang.org/x/crypto/ssh"
 )
 
 // resolveKeyPath picks the SSH private key path with this precedence:
 //
-//	flag → FOOSTASH_SSH_KEY env → ~/.ssh default.
+//	flag → FOOSTASH_SSH_KEY env → config → ~/.ssh default.
 func resolveKeyPath(flag string) (string, error) {
 	if flag != "" {
 		return flag, nil
 	}
 	if v := os.Getenv("FOOSTASH_SSH_KEY"); v != "" {
 		return v, nil
+	}
+	if cfg, err := config.LoadGlobal(); err == nil && cfg.Identity != nil && cfg.Identity.SSHKeyPath != "" {
+		return cfg.Identity.SSHKeyPath, nil
 	}
 	return sshauth.ResolveDefaultKeyPath()
 }

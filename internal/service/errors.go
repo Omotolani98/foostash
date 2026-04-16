@@ -19,4 +19,5 @@ var (
 	ErrUserNotFound      = errors.New("user not found")
 	ErrUserRevoked       = errors.New("user revoked")
 	ErrSecretNotFound    = errors.New("secret not found")
+	ErrVaultKeyNotFound  = errors.New("vault secret not found")
 )

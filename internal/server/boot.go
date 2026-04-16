@@ -11,13 +11,22 @@ import (
 	"github.com/jackc/pgx/v5/pgxpool"
 )
 
+// Config groups everything Boot needs to start the server.
+type Config struct {
+	HTTPAddr       string
+	SSHAddr        string // empty disables SSH
+	SSHHostKeyPath string
+	PGURL          string
+	Version        string
+}
+
 // Boot connects to Postgres, applies migrations, wires services, and runs the
-// HTTP server until ctx is canceled. version is surfaced on /v1/health.
-func Boot(ctx context.Context, pgURL, listenAddr, version string) error {
+// HTTP + SSH servers until ctx is canceled.
+func Boot(ctx context.Context, cfg Config) error {
 	connectCtx, cancel := context.WithTimeout(ctx, 10*time.Second)
 	defer cancel()
 
-	pool, err := pgxpool.New(connectCtx, pgURL)
+	pool, err := pgxpool.New(connectCtx, cfg.PGURL)
 	if err != nil {
 		return fmt.Errorf("connect postgres: %w", err)
 	}
@@ -35,9 +44,18 @@ func Boot(ctx context.Context, pgURL, listenAddr, version string) error {
 		Users:    service.NewUsers(repos),
 		Audit:    service.NewAudit(repos),
 		Secrets:  service.NewSecrets(repos),
+		Vault:    service.NewVault(repos),
 		Pool:     pool,
-		Version:  version,
+		Version:  cfg.Version,
 	}
 
-	return New(listenAddr, deps).Run(ctx)
+	srv, err := New(Options{
+		HTTPAddr:       cfg.HTTPAddr,
+		SSHAddr:        cfg.SSHAddr,
+		SSHHostKeyPath: cfg.SSHHostKeyPath,
+	}, deps)
+	if err != nil {
+		return fmt.Errorf("build server: %w", err)
+	}
+	return srv.Run(ctx)
 }

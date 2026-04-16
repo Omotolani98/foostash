@@ -23,6 +23,7 @@ type Repos struct {
 	Environments *EnvironmentRepo
 	Audit        *AuditRepo
 	Secrets      *SecretsRepo
+	Vault        *VaultRepo
 	Pool         *pgxpool.Pool
 }
 
@@ -37,6 +38,7 @@ func New(pool *pgxpool.Pool) *Repos {
 		Environments: &EnvironmentRepo{pool: pool},
 		Audit:        &AuditRepo{pool: pool},
 		Secrets:      &SecretsRepo{pool: pool},
+		Vault:        &VaultRepo{pool: pool},
 		Pool:         pool,
 	}
 }

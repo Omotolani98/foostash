@@ -15,11 +15,18 @@ func main() {
 
 	pgURL := envDefault("FOOSTASH_PG_URL", "postgres://foostash:foostash@localhost:5432/foostash?sslmode=disable")
 	listenAddr := envDefault("FOOSTASH_LISTEN_ADDR", ":8400")
+	sshAddr := os.Getenv("FOOSTASH_SSH_ADDR")
+	sshHostKey := os.Getenv("FOOSTASH_SSH_HOST_KEY")
 
 	ctx, cancel := signal.NotifyContext(context.Background(), os.Interrupt, syscall.SIGTERM)
 	defer cancel()
 
-	if err := server.Boot(ctx, pgURL, listenAddr, ""); err != nil {
+	if err := server.Boot(ctx, server.Config{
+		HTTPAddr:       listenAddr,
+		SSHAddr:        sshAddr,
+		SSHHostKeyPath: sshHostKey,
+		PGURL:          pgURL,
+	}); err != nil {
 		slog.Error("server exited", "err", err)
 		os.Exit(1)
 	}
