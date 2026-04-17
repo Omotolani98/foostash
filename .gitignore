@@ -2,3 +2,5 @@ ARCHITECTURE.md
 dist/
 web/dist/
 web/node_modules/
+go.work
+go.work.sum

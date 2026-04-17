@@ -6,7 +6,7 @@ LDFLAGS := -s -w \
 	-X github.com/Omotolani98/foostash/cli.Commit=$(COMMIT) \
 	-X github.com/Omotolani98/foostash/cli.Date=$(DATE)
 
-.PHONY: build build-server run-server test vet install clean docker-build docker-up docker-down
+.PHONY: build build-server run-server test vet install clean docker-build docker-up docker-down sdk-test sdk-vet
 
 build:
 	go build -ldflags="$(LDFLAGS)" -o bin/foostash ./cmd/foostash
@@ -42,3 +42,9 @@ docker-up:
 
 docker-down:
 	docker compose down
+
+sdk-test:
+	cd sdk/go && go test ./... -v
+
+sdk-vet:
+	cd sdk/go && go vet ./...
