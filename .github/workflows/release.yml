@@ -22,23 +22,6 @@ jobs:
         with:
           go-version-file: go.mod
 
-      - name: Token probe
-        run: |
-          echo "len=${#TOKEN}"
-          echo "chars 12-20=${TOKEN:12:8}"
-          echo "--- GET (should work) ---"
-          curl -s -o /dev/null -w "GET status=%{http_code}\n" \
-            -H "Authorization: Bearer $TOKEN" \
-            https://api.github.com/repos/Omotolani98/homebrew-foostash
-          echo "--- PUT probe ---"
-          curl -s -w "\nPUT status=%{http_code}\n" -X PUT \
-            -H "Authorization: Bearer $TOKEN" \
-            -H "Accept: application/vnd.github+json" \
-            https://api.github.com/repos/Omotolani98/homebrew-foostash/contents/.probe \
-            -d '{"message":"probe","content":"cHJvYmUK"}'
-        env:
-          TOKEN: ${{ secrets.HOMEBREW_TAP_GITHUB_TOKEN }}
-
       - uses: goreleaser/goreleaser-action@v6
         with:
           version: "~> v2"
