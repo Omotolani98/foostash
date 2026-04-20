@@ -124,6 +124,7 @@ func NewRootCmd() *cobra.Command {
 		newRollbackCmd(&app),
 		newImportCmd(&app),
 		newExportCmd(&app),
+		newTargetCmd(&app),
 		newRegisterCmd(),
 		newLoginCmd(),
 		newJoinCmd(),
