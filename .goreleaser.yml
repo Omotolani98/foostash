@@ -47,6 +47,27 @@ changelog:
       - "^ci:"
       - "^chore:"
 
+brews:
+  - name: foostash
+    ids:
+      - foostash
+    repository:
+      owner: Omotolani98
+      name: homebrew-foostash
+      branch: main
+      token: "{{ .Env.HOMEBREW_TAP_GITHUB_TOKEN }}"
+    commit_author:
+      name: goreleaserbot
+      email: bot@foosta.sh
+    commit_msg_template: "brew: foostash {{ .Tag }}"
+    homepage: "https://github.com/Omotolani98/foostash"
+    description: "Encrypted, versioned secrets and environment manager."
+    license: "MIT"
+    test: |
+      system "#{bin}/foostash", "-v"
+    install: |
+      bin.install "foostash"
+
 release:
   github:
     owner: Omotolani98
