@@ -29,6 +29,12 @@ jobs:
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
           HOMEBREW_TAP_GITHUB_TOKEN: ${{ secrets.HOMEBREW_TAP_GITHUB_TOKEN }}
+      - name: Debug token presence
+        run: |
+          echo "len=${#HOMEBREW_TAP_GITHUB_TOKEN}"
+          echo "first4=${HOMEBREW_TAP_GITHUB_TOKEN:0:4}"
+        env:
+          HOMEBREW_TAP_GITHUB_TOKEN: ${{ secrets.HOMEBREW_TAP_GITHUB_TOKEN }}
 
   docker:
     name: Docker image
