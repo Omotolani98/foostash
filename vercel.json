@@ -1,0 +1,6 @@
+{
+  "framework": "go",
+  "buildCommand": "go build -o vercel-server ./cmd/foostash-server",
+  "outputDirectory": ".",
+  "installCommand": "go mod download"
+}

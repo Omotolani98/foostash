@@ -13,8 +13,14 @@ import (
 func main() {
 	slog.SetDefault(slog.New(slog.NewJSONHandler(os.Stderr, nil)))
 
-	pgURL := envDefault("FOOSTASH_PG_URL", "postgres://foostash:foostash@localhost:5432/foostash?sslmode=disable")
-	listenAddr := envDefault("FOOSTASH_LISTEN_ADDR", ":8400")
+	pgURL := os.Getenv("FOOSTASH_PG_URL")
+	if pgURL == "" {
+		pgURL = "postgres://foostash:foostash@localhost:5432/foostash?sslmode=disable"
+	}
+	listenAddr := os.Getenv("PORT")
+	if listenAddr == "" {
+		listenAddr = ":8400"
+	}
 	sshAddr := os.Getenv("FOOSTASH_SSH_ADDR")
 	sshHostKey := os.Getenv("FOOSTASH_SSH_HOST_KEY")
 
@@ -31,11 +37,4 @@ func main() {
 		os.Exit(1)
 	}
 	slog.Info("server stopped")
-}
-
-func envDefault(key, def string) string {
-	if v := os.Getenv(key); v != "" {
-		return v
-	}
-	return def
 }

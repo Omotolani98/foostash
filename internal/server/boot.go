@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"time"
 
+	"github.com/Omotolani98/foostash/internal/billing"
 	"github.com/Omotolani98/foostash/internal/migrations"
 	"github.com/Omotolani98/foostash/internal/repo"
 	"github.com/Omotolani98/foostash/internal/service"
@@ -36,6 +37,11 @@ func Boot(ctx context.Context, cfg Config) error {
 		return fmt.Errorf("apply migrations: %w", err)
 	}
 
+	billingImpl, err := billing.FromEnv()
+	if err != nil {
+		return fmt.Errorf("init billing: %w", err)
+	}
+
 	repos := repo.New(pool)
 	deps := &Deps{
 		Auth:     service.NewAuth(repos),
@@ -47,6 +53,7 @@ func Boot(ctx context.Context, cfg Config) error {
 		Vault:    service.NewVault(repos),
 		Pool:     pool,
 		Version:  cfg.Version,
+		Billing:  billingImpl,
 	}
 
 	srv, err := New(Options{

@@ -3,6 +3,7 @@ package server
 import (
 	"net/http"
 
+	"github.com/Omotolani98/foostash/internal/billing"
 	"github.com/Omotolani98/foostash/internal/server/handlers"
 	"github.com/Omotolani98/foostash/internal/server/middleware"
 	"github.com/Omotolani98/foostash/internal/service"
@@ -21,6 +22,7 @@ type Deps struct {
 	Vault    *service.Vault
 	Pool     *pgxpool.Pool
 	Version  string
+	Billing  billing.Billing
 }
 
 func NewRouter(d *Deps) http.Handler {
@@ -107,6 +109,21 @@ func NewRouter(d *Deps) http.Handler {
 			r.With(middleware.RequireRole("admin"), auditor.Record("vault.rollback", "vault")).
 				Post("/{key}/rollback", vault.Rollback)
 		})
+
+		// /v1/billing: only mounted when billing is enabled (SaaS).
+		// Self-hosters get zero billing surface.
+		if d.Billing != nil && d.Billing.Enabled() {
+			billingHandler := &handlers.BillingHandler{
+				Billing: d.Billing,
+				Auth:   d.Auth,
+				Pool:   d.Pool,
+			}
+			r.With(authMW.RequireAuth).Route("/billing", func(r chi.Router) {
+				r.Get("/", billingHandler.Get)
+				r.Post("/checkout", billingHandler.Checkout)
+			})
+			r.Post("/billing/webhook", billingHandler.Webhook)
+		}
 	})
 
 	return r
