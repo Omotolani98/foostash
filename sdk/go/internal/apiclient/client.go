@@ -14,7 +14,7 @@ import (
 	"strings"
 	"time"
 
-	"github.com/Omotolani98/foostash-go-sdk/internal/sshauth"
+	"github.com/Omotolani98/foostash/sdk/go/internal/sshauth"
 	"golang.org/x/crypto/ssh"
 )
 

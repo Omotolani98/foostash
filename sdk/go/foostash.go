@@ -24,8 +24,8 @@ import (
 	"net/url"
 	"time"
 
-	"github.com/Omotolani98/foostash-go-sdk/internal/apiclient"
-	"github.com/Omotolani98/foostash-go-sdk/internal/sshauth"
+	"github.com/Omotolani98/foostash/sdk/go/internal/apiclient"
+	"github.com/Omotolani98/foostash/sdk/go/internal/sshauth"
 )
 
 // Sentinel errors returned by the SDK. Callers should branch on these with

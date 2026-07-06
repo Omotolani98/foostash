@@ -1,11 +1,11 @@
-# foostash-go-sdk
+# foostash Go SDK
 
 Read-only Go SDK for the [foostash](https://github.com/Omotolani98/foostash) secrets manager. Use it to load and watch project secrets from a foostash server at runtime, without shipping the `foostash` CLI binary with your service.
 
 ## Install
 
 ```bash
-go get github.com/Omotolani98/foostash-go-sdk
+go get github.com/Omotolani98/foostash/sdk/go@latest
 ```
 
 The SDK module lives inside the main foostash repo under `sdk/go/`, but is released with independent subdirectory tags (e.g. `sdk/go/v0.1.0`).
@@ -21,7 +21,7 @@ import (
     "os"
     "time"
 
-    foostash "github.com/Omotolani98/foostash-go-sdk"
+    foostash "github.com/Omotolani98/foostash/sdk/go"
 )
 
 func main() {
@@ -113,4 +113,4 @@ git tag sdk/go/v0.1.0
 git push origin sdk/go/v0.1.0
 ```
 
-Consumers pull with `go get github.com/Omotolani98/foostash-go-sdk@v0.1.0`.
+Consumers pull with `go get github.com/Omotolani98/foostash/sdk/go@v0.1.0`.

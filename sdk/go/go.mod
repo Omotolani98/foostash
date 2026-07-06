@@ -1,4 +1,4 @@
-module github.com/Omotolani98/foostash-go-sdk
+module github.com/Omotolani98/foostash/sdk/go
 
 go 1.25.8
 

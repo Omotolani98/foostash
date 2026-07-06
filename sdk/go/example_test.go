@@ -6,7 +6,7 @@ import (
 	"os"
 	"time"
 
-	foostash "github.com/Omotolani98/foostash-go-sdk"
+	foostash "github.com/Omotolani98/foostash/sdk/go"
 )
 
 func ExampleClient_Pull() {
