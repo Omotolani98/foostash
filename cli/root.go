@@ -87,7 +87,7 @@ func NewRootCmd() *cobra.Command {
 			// skip init for commands that don't need encryption
 			switch cmd.Name() {
 			case "init", "help", "version", "completion",
-				"register", "login", "join", "admin", "invite", "serve", "vault":
+				"register", "login", "join", "admin", "invite", "serve", "vault", "mcp":
 				return nil
 			}
 
@@ -131,6 +131,7 @@ func NewRootCmd() *cobra.Command {
 		newAdminCmd(),
 		newServeCmd(),
 		newVaultCmd(&app),
+		newMcpCmd(),
 	)
 
 	return root
