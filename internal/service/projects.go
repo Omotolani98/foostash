@@ -53,6 +53,9 @@ type EnvView struct {
 // created in the same transaction so that newly-initialized projects have
 // somewhere to put secrets.
 func (p *Projects) Create(ctx context.Context, actx *AuthContext, name string) (*repo.Project, error) {
+	if !isAdmin(actx) {
+		return nil, ErrForbidden
+	}
 	name = strings.TrimSpace(name)
 	if name == "" {
 		return nil, ErrInvalidArgument
@@ -163,6 +166,9 @@ func (p *Projects) requireProject(ctx context.Context, actx *AuthContext, slug s
 // --- Environments ---
 
 func (e *Environments) Create(ctx context.Context, actx *AuthContext, projectSlug, envSlug string) (*repo.Environment, error) {
+	if !isAdmin(actx) {
+		return nil, ErrForbidden
+	}
 	envSlug = Slugify(envSlug)
 	if envSlug == "" {
 		return nil, ErrInvalidArgument
@@ -203,6 +209,9 @@ func (e *Environments) List(ctx context.Context, actx *AuthContext, projectSlug 
 // Clone copies an env's metadata to a new env. Secrets are not yet stored
 // server-side, so this is just an empty env created with the dest slug.
 func (e *Environments) Clone(ctx context.Context, actx *AuthContext, projectSlug, srcSlug, destSlug string) (*repo.Environment, error) {
+	if !isAdmin(actx) {
+		return nil, ErrForbidden
+	}
 	destSlug = Slugify(destSlug)
 	if destSlug == "" {
 		return nil, ErrInvalidArgument
@@ -264,4 +273,3 @@ func isUniqueViolation(err error) bool {
 	}
 	return false
 }
-
