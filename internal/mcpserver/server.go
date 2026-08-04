@@ -53,6 +53,36 @@ func NewServer() *mcp.Server {
 		},
 	}, projectSetupTool)
 
+	mcp.AddTool(s, &mcp.Tool{
+		Name:        "server_setup_plan",
+		Description: "Plan a local Docker Compose Foostash server install without touching the host filesystem.",
+		Annotations: &mcp.ToolAnnotations{
+			Title:         "Plan Foostash server setup",
+			ReadOnlyHint:  true,
+			OpenWorldHint: boolPtr(false),
+		},
+	}, serverSetupPlanTool)
+
+	mcp.AddTool(s, &mcp.Tool{
+		Name:        "server_setup_apply",
+		Description: "Apply a previously generated local Docker Compose Foostash server setup plan and verify /v1/health.",
+		Annotations: &mcp.ToolAnnotations{
+			Title:          "Apply Foostash server setup",
+			IdempotentHint: true,
+			OpenWorldHint:  boolPtr(true),
+		},
+	}, serverSetupApplyTool)
+
+	mcp.AddTool(s, &mcp.Tool{
+		Name:        "environment_sync",
+		Description: "Read a local dotenv file, encrypt changed values locally, and bulk-sync them to a remote Foostash environment. Returns counts and key names only, never plaintext values.",
+		Annotations: &mcp.ToolAnnotations{
+			Title:          "Sync dotenv to Foostash environment",
+			IdempotentHint: true,
+			OpenWorldHint:  boolPtr(true),
+		},
+	}, environmentSyncTool)
+
 	return s
 }
 
