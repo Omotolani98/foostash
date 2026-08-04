@@ -36,42 +36,77 @@ type SecretsRepo struct {
 	pool *pgxpool.Pool
 }
 
+// SecretUpsertItem is one key's payload in a bulk upsert.
+type SecretUpsertItem struct {
+	Key        string
+	Ciphertext []byte
+	Nonce      []byte
+}
+
 // Upsert inserts a new secret or bumps the version of an existing one,
 // atomically writing a matching secret_history row. Returns the new version.
 func (r *SecretsRepo) Upsert(ctx context.Context, envID uuid.UUID, key string, ciphertext, nonce []byte, updatedBy uuid.UUID) (int, error) {
 	var version int
 	err := InTx(ctx, r.pool, func(tx pgx.Tx) error {
-		// Get current max version from history (if any) to handle re-insert after delete.
-		const maxVersionSQL = `
-			SELECT COALESCE(MAX(version), 0) FROM secret_history WHERE env_id = $1 AND key = $2`
-		if err := tx.QueryRow(ctx, maxVersionSQL, envID, key).Scan(&version); err != nil {
-			return fmt.Errorf("get max version: %w", err)
-		}
-		const upsertSQL = `
-			INSERT INTO secrets (env_id, key, ciphertext, nonce, version, updated_by, updated_at)
-			VALUES ($1, $2, $3, $4, $5, $6, now())
-			ON CONFLICT (env_id, key) WHERE deleted_at IS NULL
-			DO UPDATE SET
-				ciphertext = EXCLUDED.ciphertext,
-				nonce      = EXCLUDED.nonce,
-				version    = secrets.version + 1,
-				updated_by = EXCLUDED.updated_by,
-				updated_at = now()
-			RETURNING version`
-		newVersion := version + 1
-		if err := tx.QueryRow(ctx, upsertSQL, envID, key, ciphertext, nonce, newVersion, updatedBy).Scan(&version); err != nil {
-			return fmt.Errorf("upsert secret: %w", err)
-		}
-		const histSQL = `
-			INSERT INTO secret_history (env_id, key, version, ciphertext, nonce, set_by)
-			VALUES ($1, $2, $3, $4, $5, $6)`
-		if _, err := tx.Exec(ctx, histSQL, envID, key, version, ciphertext, nonce, updatedBy); err != nil {
-			return fmt.Errorf("insert history: %w", err)
+		v, err := upsertTx(ctx, tx, envID, key, ciphertext, nonce, updatedBy)
+		version = v
+		return err
+	})
+	if err != nil {
+		return 0, err
+	}
+	return version, nil
+}
+
+// BulkUpsert applies many secret upserts in a single transaction: either
+// every key lands (with its history row) or none do. Returns key → version.
+func (r *SecretsRepo) BulkUpsert(ctx context.Context, envID uuid.UUID, items []SecretUpsertItem, updatedBy uuid.UUID) (map[string]int, error) {
+	versions := make(map[string]int, len(items))
+	err := InTx(ctx, r.pool, func(tx pgx.Tx) error {
+		for _, it := range items {
+			v, err := upsertTx(ctx, tx, envID, it.Key, it.Ciphertext, it.Nonce, updatedBy)
+			if err != nil {
+				return err
+			}
+			versions[it.Key] = v
 		}
 		return nil
 	})
 	if err != nil {
-		return 0, err
+		return nil, err
+	}
+	return versions, nil
+}
+
+// upsertTx is the per-key body of Upsert/BulkUpsert. Callers must hold a tx.
+func upsertTx(ctx context.Context, tx pgx.Tx, envID uuid.UUID, key string, ciphertext, nonce []byte, updatedBy uuid.UUID) (int, error) {
+	// Get current max version from history (if any) to handle re-insert after delete.
+	var version int
+	const maxVersionSQL = `
+		SELECT COALESCE(MAX(version), 0) FROM secret_history WHERE env_id = $1 AND key = $2`
+	if err := tx.QueryRow(ctx, maxVersionSQL, envID, key).Scan(&version); err != nil {
+		return 0, fmt.Errorf("get max version: %w", err)
+	}
+	const upsertSQL = `
+		INSERT INTO secrets (env_id, key, ciphertext, nonce, version, updated_by, updated_at)
+		VALUES ($1, $2, $3, $4, $5, $6, now())
+		ON CONFLICT (env_id, key) WHERE deleted_at IS NULL
+		DO UPDATE SET
+			ciphertext = EXCLUDED.ciphertext,
+			nonce      = EXCLUDED.nonce,
+			version    = secrets.version + 1,
+			updated_by = EXCLUDED.updated_by,
+			updated_at = now()
+		RETURNING version`
+	newVersion := version + 1
+	if err := tx.QueryRow(ctx, upsertSQL, envID, key, ciphertext, nonce, newVersion, updatedBy).Scan(&version); err != nil {
+		return 0, fmt.Errorf("upsert secret: %w", err)
+	}
+	const histSQL = `
+		INSERT INTO secret_history (env_id, key, version, ciphertext, nonce, set_by)
+		VALUES ($1, $2, $3, $4, $5, $6)`
+	if _, err := tx.Exec(ctx, histSQL, envID, key, version, ciphertext, nonce, updatedBy); err != nil {
+		return 0, fmt.Errorf("insert history: %w", err)
 	}
 	return version, nil
 }

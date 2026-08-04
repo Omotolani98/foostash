@@ -86,6 +86,8 @@ func NewRouter(d *Deps) http.Handler {
 
 			// Secrets: any authenticated org member can read/write within their org.
 			r.Get("/{slug}/envs/{env}/secrets", secrets.List)
+			r.With(auditor.Record("secret.bulk_set", "secret")).
+				Put("/{slug}/envs/{env}/secrets", secrets.BulkSet)
 			r.Get("/{slug}/envs/{env}/secrets/{key}", secrets.Get)
 			r.Get("/{slug}/envs/{env}/secrets/{key}/history", secrets.History)
 			r.With(auditor.Record("secret.set", "secret")).
@@ -115,8 +117,8 @@ func NewRouter(d *Deps) http.Handler {
 		if d.Billing != nil && d.Billing.Enabled() {
 			billingHandler := &handlers.BillingHandler{
 				Billing: d.Billing,
-				Auth:   d.Auth,
-				Pool:   d.Pool,
+				Auth:    d.Auth,
+				Pool:    d.Pool,
 			}
 			r.With(authMW.RequireAuth).Route("/billing", func(r chi.Router) {
 				r.Get("/", billingHandler.Get)
