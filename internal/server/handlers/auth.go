@@ -5,9 +5,10 @@ import (
 	"encoding/json"
 	"net/http"
 
-	"github.com/Omotolani98/foostash/internal/server/respond"
 	"github.com/Omotolani98/foostash/internal/server/middleware"
+	"github.com/Omotolani98/foostash/internal/server/respond"
 	"github.com/Omotolani98/foostash/internal/service"
+	"github.com/Omotolani98/foostash/internal/sshauth"
 )
 
 type AuthHandler struct {
@@ -27,7 +28,9 @@ type registerResponse struct {
 }
 
 // Register is open: no auth middleware. Anyone with a valid SSH keypair can
-// create a new org. The signature still proves they hold the private key.
+// create a new org, but they must prove possession of the private key: like
+// Join, we verify the request signature against the public key in the body
+// before creating anything.
 func (h *AuthHandler) Register(w http.ResponseWriter, r *http.Request) {
 	body := middleware.BodyFromContext(r.Context())
 	var req registerRequest
@@ -35,6 +38,26 @@ func (h *AuthHandler) Register(w http.ResponseWriter, r *http.Request) {
 		respond.WriteError(w, http.StatusBadRequest, "invalid_json", err.Error())
 		return
 	}
+	if req.PublicKey == "" {
+		respond.WriteError(w, http.StatusBadRequest, "invalid_argument", "public_key required")
+		return
+	}
+	pub, err := sshauth.ParseAuthorizedKey(req.PublicKey)
+	if err != nil {
+		respond.WriteError(w, http.StatusBadRequest, "invalid_argument", "bad public key")
+		return
+	}
+	timestamp := r.Header.Get(sshauth.HeaderTimestamp)
+	sig := r.Header.Get(sshauth.HeaderSignature)
+	if timestamp == "" || sig == "" {
+		respond.WriteError(w, http.StatusUnauthorized, "missing_signature", "signature headers missing")
+		return
+	}
+	if err := sshauth.Verify(pub, r.Method, r.URL.Path, timestamp, sig, body); err != nil {
+		respond.WriteServiceError(w, err)
+		return
+	}
+
 	out, err := h.Auth.Register(r.Context(), service.RegisterInput{
 		Email:     req.Email,
 		OrgName:   req.OrgName,
