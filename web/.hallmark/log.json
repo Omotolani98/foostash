@@ -1,0 +1,22 @@
+[
+  {
+    "date": "2026-08-04",
+    "macrostructure": "Index-first (docs)",
+    "theme": "studied-DNA",
+    "theme_axes": "dark / mono display / chromatic-other (phosphor green)",
+    "enrichment": "none",
+    "nav": "docs top bar + side rail",
+    "footer": "none (docs)",
+    "brief": "foostash /docs — Next.js port of the user's Foostash Docs design"
+  },
+  {
+    "date": "2026-08-04",
+    "macrostructure": "Workbench",
+    "theme": "studied-DNA",
+    "theme_axes": "dark / mono display / chromatic-other (phosphor green)",
+    "enrichment": "none",
+    "nav": "N1b",
+    "footer": "Ft2",
+    "brief": "foostash landing — Next.js port of the user's Claude Design file"
+  }
+]

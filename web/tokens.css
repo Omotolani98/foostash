@@ -1,0 +1,87 @@
+/* Hallmark · genre: modern-minimal · macrostructure: Workbench
+ * theme: studied-DNA (source: Claude Design — "Foostash Landing.dc.html", user's own)
+ * paper oklch(15.4% 0.0046 264.4) · accent oklch(84.2% 0.1641 145.8) phosphor-green
+ * display: IBM Plex Mono · body: IBM Plex Sans
+ * axes: dark paper / mono display / chromatic-other (phosphor)
+ * nav: N1b three-section · footer: Ft2 inline · enrichment: none (typography only)
+ * pre-emit critique: P5 H5 E5 S5 R5 V4
+ */
+
+:root {
+  /* ---- Surfaces --------------------------------------------------------
+     A five-rung dark ramp. Every panel in the page sits on exactly one of
+     these; nothing invents an in-between value. */
+  --color-paper: oklch(15.4% 0.0046 264.4);
+  --color-surface: oklch(16.9% 0.0065 271);
+  --color-raised: oklch(18.1% 0.0069 258.4);
+  --color-panel: oklch(20% 0.0086 264.4);
+  --color-panel-hi: oklch(23% 0.0107 260.7);
+
+  /* ---- Rules ---- */
+  --color-rule: oklch(24.7% 0.0105 260.7);
+  --color-rule-strong: oklch(30% 0.0123 258.4);
+
+  /* ---- Ink ramp ---- */
+  --color-ink: oklch(93% 0.0067 106.5);
+  --color-muted: oklch(74.6% 0.0128 259.8);
+  --color-dim: oklch(64.9% 0.0146 262.4);
+  --color-faint: oklch(46.3% 0.011 258.4);
+
+  /* ---- Accent ---- */
+  --color-accent: oklch(84.2% 0.1641 145.8);
+  --color-accent-dim: oklch(84.2% 0.1641 145.8 / 0.16);
+  --color-focus: oklch(84.2% 0.1641 145.8);
+
+  /* ---- Type ------------------------------------------------------------
+     --font-sans / --font-mono are bound to next/font CSS variables in
+     layout.tsx; the fallbacks keep this file portable on its own. */
+  --font-body: var(--font-sans, "IBM Plex Sans", system-ui, sans-serif);
+  --font-display: var(--font-mono, "IBM Plex Mono", ui-monospace, monospace);
+  --font-mono-stack: var(--font-mono, "IBM Plex Mono", ui-monospace, monospace);
+
+  --text-xs: 0.75rem;
+  --text-sm: 0.8125rem;
+  --text-base: 0.875rem;
+  --text-md: 0.9375rem;
+  --text-lg: 1.0625rem;
+  --text-xl: 1.375rem;
+  --text-2xl: clamp(1.375rem, 1.1rem + 1.2vw, 1.625rem);
+  --text-display: clamp(2rem, 1.35rem + 2.9vw, 2.875rem);
+
+  --leading-tight: 1.12;
+  --leading-snug: 1.35;
+  --leading-body: 1.65;
+  --leading-term: 1.85;
+
+  --tracking-display: -0.025em;
+  --tracking-head: -0.02em;
+
+  /* ---- Space · 4pt scale ---- */
+  --space-2xs: 0.25rem;
+  --space-xs: 0.5rem;
+  --space-sm: 0.75rem;
+  --space-md: 1rem;
+  --space-lg: 1.5rem;
+  --space-xl: 2rem;
+  --space-2xl: 2.75rem;
+  --space-3xl: 4rem;
+  --space-4xl: 5.5rem;
+
+  --page-max: 1200px;
+  --page-gutter: clamp(1.25rem, 4vw, 2rem);
+  --nav-h: 60px;
+
+  /* ---- Motion ---- */
+  --ease-out: cubic-bezier(0.22, 1, 0.36, 1);
+  --ease-in: cubic-bezier(0.55, 0, 1, 0.45);
+  --ease-in-out: cubic-bezier(0.65, 0, 0.35, 1);
+  --dur-fast: 120ms;
+  --dur-base: 200ms;
+  --dur-slow: 320ms;
+
+  /* ---- Geometry --------------------------------------------------------
+     Terminal register: square corners everywhere. The radius token exists so
+     nothing hard-codes a value if a rounded affordance is ever needed. */
+  --radius-none: 0px;
+  --rule-hair: 1px;
+}

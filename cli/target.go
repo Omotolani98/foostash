@@ -41,6 +41,20 @@ func newTargetCmd(app *App) *cobra.Command {
 	return cmd
 }
 
+// resolveTargetEnv returns the environment name a target command operates on:
+// the explicit -e/--env flag, falling back to the project's DefaultEnv.
+func resolveTargetEnv(flags *targetFlags) (string, error) {
+	proj, err := loadProjectConfig()
+	if err != nil {
+		return "", fmt.Errorf("no .foostash.yaml in current directory (run `foostash init` first)")
+	}
+	env := flags.env
+	if env == "" {
+		env = proj.DefaultEnv
+	}
+	return env, nil
+}
+
 func fetchTargetSecrets(app *App, flags *targetFlags) (map[string]string, error) {
 	proj, err := loadProjectConfig()
 	if err != nil {
@@ -219,13 +233,33 @@ func newTargetGHARenderCmd(app *App, flags *targetFlags) *cobra.Command {
 }
 
 func newTargetGHAPushCmd(app *App, flags *targetFlags) *cobra.Command {
-	var repo, ghEnv string
+	var repo, varsPrefix string
+	var vars []string
+	var repoLevel bool
 	cmd := &cobra.Command{
 		Use:   "push",
-		Short: "Push secrets to a GitHub repository via `gh secret set`",
+		Short: "Push all secrets to a GitHub repo: keys go to Actions Secrets, --vars keys go to Variables",
+		Long: `Push every secret in the environment to a GitHub repository via the gh CLI.
+
+By default every key is written as an encrypted Actions Secret (gh secret set).
+Keys named in --vars, or matching --vars-prefix, are instead written as plaintext
+Actions Variables (gh variable set) — use this for non-sensitive config such as
+REDIS_URL or NODE_ENV so it stays out of the masked secret store.
+
+Secrets/variables are scoped to the GitHub Actions environment matching the
+foostash env (-e/--env, or the project default). Pass --repo-level to write
+repo-wide secrets/variables instead.`,
 		RunE: func(cmd *cobra.Command, args []string) error {
 			if repo == "" {
 				return fmt.Errorf("--repo OWNER/REPO is required")
+			}
+			ghEnv := ""
+			if !repoLevel {
+				env, err := resolveTargetEnv(flags)
+				if err != nil {
+					return err
+				}
+				ghEnv = env
 			}
 			if _, err := exec.LookPath("gh"); err != nil {
 				return fmt.Errorf("gh CLI not found in $PATH; install https://cli.github.com/")
@@ -240,13 +274,32 @@ func newTargetGHAPushCmd(app *App, flags *targetFlags) *cobra.Command {
 			if err != nil {
 				return err
 			}
+
+			varSet := make(map[string]bool, len(vars))
+			for _, v := range vars {
+				varSet[strings.TrimSpace(v)] = true
+			}
+			isVar := func(k string) bool {
+				if varSet[k] {
+					return true
+				}
+				return varsPrefix != "" && strings.HasPrefix(k, varsPrefix)
+			}
+
 			keys := make([]string, 0, len(secrets))
 			for k := range secrets {
 				keys = append(keys, k)
 			}
 			sort.Strings(keys)
 			for _, k := range keys {
-				gargs := []string{"secret", "set", k, "--repo", repo, "--body-file", "-"}
+				var gargs []string
+				kind := "secret"
+				if isVar(k) {
+					kind = "variable"
+					gargs = []string{"variable", "set", k, "--repo", repo, "--body-file", "-"}
+				} else {
+					gargs = []string{"secret", "set", k, "--repo", repo, "--body-file", "-"}
+				}
 				if ghEnv != "" {
 					gargs = append(gargs, "--env", ghEnv)
 				}
@@ -254,14 +307,16 @@ func newTargetGHAPushCmd(app *App, flags *targetFlags) *cobra.Command {
 				c.Stdin = strings.NewReader(secrets[k])
 				c.Stderr = os.Stderr
 				if err := c.Run(); err != nil {
-					return fmt.Errorf("push %s: %w", k, err)
+					return fmt.Errorf("push %s %s: %w", kind, k, err)
 				}
-				fmt.Printf("set %s\n", k)
+				fmt.Printf("set %s %s\n", kind, k)
 			}
 			return nil
 		},
 	}
 	cmd.Flags().StringVar(&repo, "repo", "", "OWNER/REPO (required)")
-	cmd.Flags().StringVar(&ghEnv, "gh-env", "", "GitHub Actions environment name (optional)")
+	cmd.Flags().BoolVar(&repoLevel, "repo-level", false, "Write repo-wide secrets/variables instead of scoping to the -e/--env GitHub environment")
+	cmd.Flags().StringSliceVar(&vars, "vars", nil, "Keys to push as plaintext Variables instead of Secrets (comma-separated or repeated)")
+	cmd.Flags().StringVar(&varsPrefix, "vars-prefix", "", "Push keys with this prefix as plaintext Variables instead of Secrets")
 	return cmd
 }
