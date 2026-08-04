@@ -32,6 +32,18 @@ type Secrets struct {
 	repos *repo.Repos
 }
 
+const (
+	maxBulkSecrets         = 500
+	maxSecretCiphertextLen = 64 * 1024
+)
+
+// SecretUpsert is one client-encrypted secret payload for a bulk write.
+type SecretUpsert struct {
+	Key        string
+	Ciphertext []byte
+	Nonce      []byte
+}
+
 func NewSecrets(r *repo.Repos) *Secrets {
 	return &Secrets{repos: r}
 }
@@ -58,6 +70,36 @@ func (s *Secrets) Set(ctx context.Context, actx *AuthContext, projectSlug, envSl
 		UpdatedBy:  &actx.UserID,
 		UpdatedAt:  time.Now().UTC(),
 	}, nil
+}
+
+// BulkSet stores multiple client-encrypted secrets atomically. The server still
+// only sees ciphertext + nonce; plaintext comparison, if any, happens client-side.
+func (s *Secrets) BulkSet(ctx context.Context, actx *AuthContext, projectSlug, envSlug string, items []SecretUpsert) (map[string]int, error) {
+	if len(items) == 0 || len(items) > maxBulkSecrets {
+		return nil, ErrInvalidArgument
+	}
+	seen := make(map[string]struct{}, len(items))
+	repoItems := make([]repo.SecretUpsertItem, 0, len(items))
+	for _, it := range items {
+		if it.Key == "" || len(it.Ciphertext) == 0 || len(it.Nonce) == 0 || len(it.Ciphertext) > maxSecretCiphertextLen {
+			return nil, ErrInvalidArgument
+		}
+		if _, ok := seen[it.Key]; ok {
+			return nil, ErrInvalidArgument
+		}
+		seen[it.Key] = struct{}{}
+		repoItems = append(repoItems, repo.SecretUpsertItem{
+			Key:        it.Key,
+			Ciphertext: it.Ciphertext,
+			Nonce:      it.Nonce,
+		})
+	}
+
+	env, err := s.resolveEnv(ctx, actx, projectSlug, envSlug)
+	if err != nil {
+		return nil, err
+	}
+	return s.repos.Secrets.BulkUpsert(ctx, env.ID, repoItems, actx.UserID)
 }
 
 // Get returns the live secret for a key.

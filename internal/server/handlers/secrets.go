@@ -29,6 +29,25 @@ type setSecretRequest struct {
 	Nonce      []byte `json:"nonce"`
 }
 
+type bulkSetSecretRequest struct {
+	Key        string `json:"key"`
+	Ciphertext []byte `json:"ciphertext"`
+	Nonce      []byte `json:"nonce"`
+}
+
+type bulkSetRequest struct {
+	Secrets []bulkSetSecretRequest `json:"secrets"`
+}
+
+type bulkSetSecretResponse struct {
+	Key     string `json:"key"`
+	Version int    `json:"version"`
+}
+
+type bulkSetResponse struct {
+	Secrets []bulkSetSecretResponse `json:"secrets"`
+}
+
 func (h *SecretsHandler) Set(w http.ResponseWriter, r *http.Request) {
 	actx := middleware.AuthFromContext(r.Context())
 	body := middleware.BodyFromContext(r.Context())
@@ -47,6 +66,37 @@ func (h *SecretsHandler) Set(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	respond.WriteJSON(w, http.StatusOK, toSecretDTO(view))
+}
+
+func (h *SecretsHandler) BulkSet(w http.ResponseWriter, r *http.Request) {
+	actx := middleware.AuthFromContext(r.Context())
+	body := middleware.BodyFromContext(r.Context())
+	project := chi.URLParam(r, "slug")
+	env := chi.URLParam(r, "env")
+
+	var req bulkSetRequest
+	if err := json.Unmarshal(body, &req); err != nil {
+		respond.WriteError(w, http.StatusBadRequest, "invalid_json", err.Error())
+		return
+	}
+	items := make([]service.SecretUpsert, 0, len(req.Secrets))
+	for _, s := range req.Secrets {
+		items = append(items, service.SecretUpsert{
+			Key:        s.Key,
+			Ciphertext: s.Ciphertext,
+			Nonce:      s.Nonce,
+		})
+	}
+	versions, err := h.Secrets.BulkSet(r.Context(), actx, project, env, items)
+	if err != nil {
+		respond.WriteServiceError(w, err)
+		return
+	}
+	out := bulkSetResponse{Secrets: make([]bulkSetSecretResponse, 0, len(req.Secrets))}
+	for _, s := range req.Secrets {
+		out.Secrets = append(out.Secrets, bulkSetSecretResponse{Key: s.Key, Version: versions[s.Key]})
+	}
+	respond.WriteJSON(w, http.StatusOK, out)
 }
 
 func (h *SecretsHandler) Get(w http.ResponseWriter, r *http.Request) {
