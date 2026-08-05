@@ -3,24 +3,52 @@
 import { useEffect, useRef } from "react";
 import { ENV_KEYS } from "@/lib/content";
 
-const COL_W = 7.2; // IBM Plex Mono advance at 12px
-const ROW_H = 14;
 const TICK_MS = 90;
 const MAX_TOKENS = 12;
 const BOX_W = 46;
+const FALLBACK_ADVANCE = 7.2;
+const FALLBACK_ROW = 14;
+
+/**
+ * Box-drawing and block glyphs only line up if they advance by exactly the
+ * same width as a space in the font that actually renders them. When they
+ * don't, horizontal runs drift and the box stops closing, so we verify at
+ * runtime and drop to pure ASCII if the check fails.
+ */
+const UNICODE_GLYPHS = {
+  tl: "┌",
+  tr: "┐",
+  bl: "└",
+  br: "┘",
+  h: "─",
+  v: "│",
+  fill: "▓",
+  cipher: "▒",
+};
+
+const ASCII_GLYPHS = {
+  tl: "+",
+  tr: "+",
+  bl: "+",
+  br: "+",
+  h: "-",
+  v: "|",
+  fill: "#",
+  cipher: "*",
+};
 
 type Token = { text: string; col: number; row: number; v: number };
 
 /**
- * Decorative hero background: env vars rain down as plaintext, flip to ▒
+ * Decorative hero background: env vars rain down as plaintext, flip to
  * ciphertext past the halfway mark, and land in a drawn "stash" box that
- * fills with ▓.
+ * fills from the bottom.
  *
- * Painted by writing textContent on two <pre> refs rather than through React
- * state — this repaints ~11×/sec and reconciling a full-viewport string that
- * often would dominate the main thread for something purely decorative.
- * Pauses when the tab is hidden or the hero scrolls out of view, and renders
- * a single static frame under prefers-reduced-motion.
+ * Painted by writing textContent on three <pre> refs rather than through
+ * React state — this repaints ~11x/sec and reconciling a full-viewport
+ * string that often would dominate the main thread for something purely
+ * decorative. Pauses when the tab is hidden or the hero scrolls out of
+ * view, and renders a single static frame under prefers-reduced-motion.
  */
 export function AsciiStash() {
   const wrapRef = useRef<HTMLDivElement>(null);
@@ -37,13 +65,44 @@ export function AsciiStash() {
 
     let cols = 0;
     let rows = 0;
+    let advance = FALLBACK_ADVANCE;
+    let rowH = FALLBACK_ROW;
+    let glyphs = UNICODE_GLYPHS;
     let tokens: Token[] = [];
     let fill = 0;
     let frame = 0;
 
+    /** Width of one character cell, measured in the font that really loaded. */
+    const widthOf = (char: string, style: CSSStyleDeclaration) => {
+      const probe = document.createElement("span");
+      probe.style.cssText =
+        "position:absolute;visibility:hidden;white-space:pre;padding:0;border:0";
+      probe.style.fontFamily = style.fontFamily;
+      probe.style.fontSize = style.fontSize;
+      probe.textContent = char.repeat(50);
+      wrap.appendChild(probe);
+      const w = probe.getBoundingClientRect().width / 50;
+      probe.remove();
+      return w;
+    };
+
     const measure = () => {
-      cols = Math.max(24, Math.floor(wrap.clientWidth / COL_W));
-      rows = Math.max(24, Math.floor(wrap.clientHeight / ROW_H));
+      const style = getComputedStyle(tokensEl);
+
+      const base = widthOf("0", style);
+      advance = base > 0 ? base : FALLBACK_ADVANCE;
+
+      // Every glyph the art uses must match the base cell, or the grid skews.
+      const monospaced = Object.values(UNICODE_GLYPHS).every(
+        (g) => Math.abs(widthOf(g, style) - advance) < 0.5,
+      );
+      glyphs = monospaced ? UNICODE_GLYPHS : ASCII_GLYPHS;
+
+      const parsedRow = parseFloat(style.lineHeight);
+      rowH = Number.isFinite(parsedRow) && parsedRow > 0 ? parsedRow : FALLBACK_ROW;
+
+      cols = Math.max(24, Math.floor(wrap.clientWidth / advance));
+      rows = Math.max(24, Math.floor(wrap.clientHeight / rowH));
     };
 
     const blank = () =>
@@ -68,7 +127,7 @@ export function AsciiStash() {
       });
     };
 
-    const advance = () => {
+    const advanceFrame = () => {
       const lid = rows - 9;
       frame += 1;
       if (frame % 5 === 0 && tokens.length < MAX_TOKENS) spawn();
@@ -94,7 +153,12 @@ export function AsciiStash() {
         if (r < 0 || r >= lid) continue;
         // Past the halfway point the value is already ciphertext.
         const encrypted = t.row > lid * 0.55;
-        put(gTokens, r, t.col, encrypted ? "▒".repeat(t.text.length) : t.text);
+        put(
+          gTokens,
+          r,
+          t.col,
+          encrypted ? glyphs.cipher.repeat(t.text.length) : t.text,
+        );
       }
 
       const bw = Math.min(BOX_W, cols - 8);
@@ -106,26 +170,31 @@ export function AsciiStash() {
         gFrame,
         lid,
         x0,
-        "┌" +
-          "─".repeat(side) +
+        glyphs.tl +
+          glyphs.h.repeat(side) +
           label +
-          "─".repeat(Math.max(0, bw - 2 - side - label.length)) +
-          "┐",
+          glyphs.h.repeat(Math.max(0, bw - 2 - side - label.length)) +
+          glyphs.tr,
       );
 
       const innerTop = lid + 1;
       const innerBottom = rows - 3;
       for (let r = innerTop; r <= innerBottom; r++) {
-        put(gFrame, r, x0, "│");
-        put(gFrame, r, x0 + bw - 1, "│");
+        put(gFrame, r, x0, glyphs.v);
+        put(gFrame, r, x0 + bw - 1, glyphs.v);
       }
-      put(gFrame, rows - 2, x0, "└" + "─".repeat(bw - 2) + "┘");
+      put(
+        gFrame,
+        rows - 2,
+        x0,
+        glyphs.bl + glyphs.h.repeat(bw - 2) + glyphs.br,
+      );
 
       const iw = bw - 4;
       let left = Math.min(fill, iw * (innerBottom - innerTop + 1));
       for (let r = innerBottom; r >= innerTop && left > 0; r--) {
         const n = Math.min(left, iw);
-        put(gFill, r, x0 + 2, "▓".repeat(n));
+        put(gFill, r, x0 + 2, glyphs.fill.repeat(n));
         left -= n;
       }
 
@@ -142,6 +211,14 @@ export function AsciiStash() {
       paint();
     });
     ro.observe(wrap);
+
+    // Metrics can change once the webfont swaps in.
+    if (document.fonts?.ready) {
+      document.fonts.ready.then(() => {
+        measure();
+        paint();
+      });
+    }
 
     if (window.matchMedia("(prefers-reduced-motion: reduce)").matches) {
       // One composed frame: a partly-filled stash, a few values in flight.
@@ -161,7 +238,7 @@ export function AsciiStash() {
       const shouldRun = onScreen && !document.hidden;
       if (shouldRun && timer === undefined) {
         timer = window.setInterval(() => {
-          advance();
+          advanceFrame();
           paint();
         }, TICK_MS);
       } else if (!shouldRun && timer !== undefined) {

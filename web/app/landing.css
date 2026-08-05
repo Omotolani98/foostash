@@ -215,7 +215,13 @@
   position: absolute;
   inset: 0;
   margin: 0;
-  font-family: var(--font-mono-stack);
+  /* NOT the IBM Plex Mono stack. Its latin subset carries no box-drawing
+     (U+2500…) or block (U+2593) glyphs, so those fall back to another font
+     with a wider advance while the surrounding spaces keep Plex's — the
+     horizontals drift and the rectangle never closes. A system monospace
+     stack carries every glyph this art uses, so all cells step evenly. */
+  font-family: ui-monospace, SFMono-Regular, Menlo, Consolas,
+    "DejaVu Sans Mono", monospace;
   font-size: 12px;
   line-height: var(--ascii-row);
   white-space: pre;
