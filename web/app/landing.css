@@ -6,21 +6,33 @@
 
 .pill {
   position: fixed;
-  inset: var(--hero-inset) var(--hero-inset) auto;
+  inset: clamp(18px, 3vw, 34px) var(--page-gutter) auto;
   z-index: 60;
+  pointer-events: none;
 }
 
 .pill__bar {
-  display: flex;
+  width: min(100%, var(--nav-max));
+  min-height: var(--nav-h);
+  margin-inline: auto;
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto minmax(0, 1fr);
   align-items: center;
-  justify-content: space-between;
   gap: var(--space-lg);
-  padding: 10px 12px 10px 22px;
+  padding: 12px 16px 12px 18px;
   border: var(--rule-hair) solid var(--color-rule-pill);
   border-radius: var(--radius-pill);
-  background: color-mix(in oklch, var(--color-paper) 86%, transparent);
-  font-family: var(--font-mono-stack);
-  font-size: var(--text-sm);
+  background: linear-gradient(
+      90deg,
+      color-mix(in oklch, var(--color-paper) 96%, transparent),
+      color-mix(in oklch, var(--color-surface) 90%, transparent)
+    ),
+    color-mix(in oklch, var(--color-paper) 88%, transparent);
+  box-shadow: 0 18px 48px
+    color-mix(in oklch, var(--color-paper) 72%, transparent);
+  font-family: var(--font-body);
+  font-size: var(--text-md);
+  pointer-events: auto;
 }
 
 @supports (backdrop-filter: blur(1px)) {
@@ -32,25 +44,50 @@
 
 .pill__brand {
   display: inline-flex;
-  align-items: baseline;
-  gap: 1px;
-  font-size: var(--text-md);
+  align-items: center;
+  gap: 10px;
+  min-width: 0;
+  width: fit-content;
+  font-size: var(--text-sm);
   font-weight: 600;
-  letter-spacing: -0.02em;
+  letter-spacing: -0.03em;
   white-space: nowrap;
+}
+
+.pill__mark {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 42px;
+  height: 42px;
+  flex: none;
+  border: var(--rule-hair) solid var(--color-rule-strong);
+  border-radius: var(--radius-pill);
+  background: var(--color-panel);
+  color: var(--color-accent);
+  font-family: var(--font-mono-stack);
+  font-size: var(--text-xs);
+  font-weight: 600;
+  letter-spacing: -0.05em;
+}
+
+.pill__word {
+  color: var(--color-ink);
 }
 
 .pill__links {
   display: flex;
   align-items: center;
-  gap: 30px;
+  justify-content: center;
+  gap: clamp(22px, 3vw, 42px);
 }
 
 .pill__link {
   position: relative;
-  color: var(--color-dim);
+  color: var(--color-muted);
   white-space: nowrap;
-  padding-block: 2px;
+  padding-block: 8px;
+  font-weight: 500;
   transition: color var(--dur-fast) var(--ease-out);
 }
 
@@ -82,7 +119,9 @@
 .pill__right {
   display: flex;
   align-items: center;
+  justify-content: flex-end;
   gap: var(--space-xs);
+  min-width: 0;
 }
 
 .pill__gh,
@@ -90,17 +129,18 @@
   display: flex;
   align-items: center;
   justify-content: center;
-  width: 34px;
-  height: 34px;
+  width: 42px;
+  height: 42px;
   flex: none;
   padding: 0;
   border: 0;
   border-radius: var(--radius-pill);
-  background: var(--color-panel);
-  color: var(--color-dim);
+  background: transparent;
+  color: var(--color-ink);
   cursor: pointer;
   transition: color var(--dur-fast) var(--ease-out),
-    background var(--dur-fast) var(--ease-out);
+    background var(--dur-fast) var(--ease-out),
+    transform var(--dur-fast) var(--ease-out);
 }
 
 @media (hover: hover) and (pointer: fine) {
@@ -111,6 +151,11 @@
   }
 }
 
+.pill__gh:active,
+.pill__toggle:active {
+  transform: translateY(1px);
+}
+
 .pill__toggle {
   display: none;
 }
@@ -118,10 +163,13 @@
 /* Mobile disclosure sheet, hung under the pill. */
 .pill__sheet {
   display: none;
+  width: min(100%, var(--nav-max));
+  margin-inline: auto;
   margin-top: var(--space-xs);
   border: var(--rule-hair) solid var(--color-rule-pill);
-  border-radius: 20px;
+  border-radius: 24px;
   background: color-mix(in oklch, var(--color-paper) 94%, transparent);
+  pointer-events: auto;
 }
 
 .pill__sheet ul {
@@ -145,6 +193,14 @@
 }
 
 @media (max-width: 60rem) {
+  .pill {
+    inset: max(12px, env(safe-area-inset-top)) var(--hero-inset) auto;
+  }
+  .pill__bar {
+    grid-template-columns: minmax(0, 1fr) auto;
+    min-height: 58px;
+    padding: 8px 8px 8px 12px;
+  }
   .pill__links {
     display: none;
   }
@@ -158,8 +214,20 @@
 
 @media (max-width: 26rem) {
   .pill__bar {
-    padding-left: 16px;
+    padding-left: 10px;
     gap: var(--space-sm);
+  }
+  .pill__mark {
+    width: 36px;
+    height: 36px;
+  }
+  .pill__word {
+    font-size: var(--text-xs);
+  }
+  .pill__gh,
+  .pill__toggle {
+    width: 38px;
+    height: 38px;
   }
 }
 
@@ -179,7 +247,7 @@
      still lands on content when the viewport is small. */
   min-height: clamp(560px, 88dvh, 760px);
   /* Top padding clears the fixed pill, which is out of flow. */
-  padding: calc(18px + 54px) 18px 40px;
+  padding: calc(var(--nav-h) + clamp(42px, 7vw, 76px)) 18px 40px;
   border: var(--rule-hair) solid var(--color-rule);
   background: var(--color-raised);
   overflow: hidden;
@@ -576,7 +644,7 @@
 .section {
   border-top: var(--rule-hair) solid var(--color-rule);
   /* Anchor targets must clear the floating pill. */
-  scroll-margin-top: calc(var(--hero-inset) + 54px + var(--space-md));
+  scroll-margin-top: calc(var(--hero-inset) + var(--nav-h) + var(--space-md));
 }
 
 .section__inner {
