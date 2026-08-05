@@ -25,13 +25,15 @@ type Token = { text: string; col: number; row: number; v: number };
 export function AsciiStash() {
   const wrapRef = useRef<HTMLDivElement>(null);
   const tokensRef = useRef<HTMLPreElement>(null);
-  const stashRef = useRef<HTMLPreElement>(null);
+  const frameRef = useRef<HTMLPreElement>(null);
+  const fillRef = useRef<HTMLPreElement>(null);
 
   useEffect(() => {
     const wrap = wrapRef.current;
     const tokensEl = tokensRef.current;
-    const stashEl = stashRef.current;
-    if (!wrap || !tokensEl || !stashEl) return;
+    const frameEl = frameRef.current;
+    const fillEl = fillRef.current;
+    if (!wrap || !tokensEl || !frameEl || !fillEl) return;
 
     let cols = 0;
     let rows = 0;
@@ -84,7 +86,8 @@ export function AsciiStash() {
     const paint = () => {
       const lid = rows - 9;
       const gTokens = blank();
-      const gStash = blank();
+      const gFrame = blank();
+      const gFill = blank();
 
       for (const t of tokens) {
         const r = Math.floor(t.row);
@@ -100,7 +103,7 @@ export function AsciiStash() {
       const side = Math.floor((bw - 2 - label.length) / 2);
 
       put(
-        gStash,
+        gFrame,
         lid,
         x0,
         "┌" +
@@ -113,21 +116,23 @@ export function AsciiStash() {
       const innerTop = lid + 1;
       const innerBottom = rows - 3;
       for (let r = innerTop; r <= innerBottom; r++) {
-        put(gStash, r, x0, "│");
-        put(gStash, r, x0 + bw - 1, "│");
+        put(gFrame, r, x0, "│");
+        put(gFrame, r, x0 + bw - 1, "│");
       }
-      put(gStash, rows - 2, x0, "└" + "─".repeat(bw - 2) + "┘");
+      put(gFrame, rows - 2, x0, "└" + "─".repeat(bw - 2) + "┘");
 
       const iw = bw - 4;
       let left = Math.min(fill, iw * (innerBottom - innerTop + 1));
       for (let r = innerBottom; r >= innerTop && left > 0; r--) {
         const n = Math.min(left, iw);
-        put(gStash, r, x0 + 2, "▓".repeat(n));
+        put(gFill, r, x0 + 2, "▓".repeat(n));
         left -= n;
       }
 
-      tokensEl.textContent = gTokens.map((r) => r.join("")).join("\n");
-      stashEl.textContent = gStash.map((r) => r.join("")).join("\n");
+      const flatten = (g: string[][]) => g.map((r) => r.join("")).join("\n");
+      tokensEl.textContent = flatten(gTokens);
+      frameEl.textContent = flatten(gFrame);
+      fillEl.textContent = flatten(gFill);
     };
 
     measure();
@@ -189,7 +194,8 @@ export function AsciiStash() {
   return (
     <div className="ascii" ref={wrapRef} aria-hidden="true">
       <pre className="ascii__tokens" ref={tokensRef} />
-      <pre className="ascii__stash" ref={stashRef} />
+      <pre className="ascii__fill" ref={fillRef} />
+      <pre className="ascii__frame" ref={frameRef} />
     </div>
   );
 }

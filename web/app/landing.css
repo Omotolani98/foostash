@@ -225,9 +225,18 @@
   color: var(--color-ascii);
 }
 
-.ascii__stash {
+/* Frame and fill carry different weights on purpose. A single opacity across
+   both loses the box: ▓ covers most of its cell so it still reads as a solid
+   tint, while the 1px ─│ strokes vanish, leaving a slab with no container.
+   The frame is drawn stronger so the box stays legible as it fills. */
+.ascii__frame {
   color: var(--color-accent);
-  opacity: 0.16;
+  opacity: 0.34;
+}
+
+.ascii__fill {
+  color: var(--color-accent);
+  opacity: 0.14;
 }
 
 /* ---- Centre stack ---- */
