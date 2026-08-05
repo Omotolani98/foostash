@@ -1,5 +1,15 @@
 [
   {
+    "date": "2026-08-05",
+    "macrostructure": "Workbench",
+    "theme": "studied-DNA",
+    "theme_axes": "dark / mono display / chromatic-other (phosphor green)",
+    "enrichment": "hand-built ASCII field (no library)",
+    "nav": "N5 floating pill",
+    "footer": "Ft2 inline",
+    "brief": "foostash landing rev 2 — centered hero panel, ASCII stash background, stats rail"
+  },
+  {
     "date": "2026-08-04",
     "macrostructure": "Index-first (docs)",
     "theme": "studied-DNA",

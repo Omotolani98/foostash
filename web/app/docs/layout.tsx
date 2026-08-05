@@ -20,7 +20,7 @@ export default function DocsLayout({
     <div className="docs">
       <header className="docs-bar">
         <div className="docs-bar__crumb">
-          <Link href="/" className="nav__brand">
+          <Link href="/" className="docs-bar__brand">
             <span className="brand__bracket">[</span>
             <span>foostash</span>
             <span className="brand__bracket">]</span>

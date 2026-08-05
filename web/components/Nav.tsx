@@ -4,30 +4,14 @@ import { useEffect, useState } from "react";
 import { NAV_LINKS, REPO } from "@/lib/content";
 import { GithubMark } from "./GithubMark";
 
+/**
+ * N5 floating pill. The design nests this inside the hero panel, which clips
+ * `position: sticky` — the nav would scroll away and take its own section
+ * anchors with it. Fixed at page level instead, so it stays reachable.
+ */
 export function Nav() {
-  const [scrolled, setScrolled] = useState(false);
   const [open, setOpen] = useState(false);
 
-  // rAF-throttled so the handler never runs more than once per frame.
-  useEffect(() => {
-    let frame = 0;
-    const onScroll = () => {
-      if (frame) return;
-      frame = requestAnimationFrame(() => {
-        setScrolled(window.scrollY > 8);
-        frame = 0;
-      });
-    };
-    onScroll();
-    window.addEventListener("scroll", onScroll, { passive: true });
-    return () => {
-      window.removeEventListener("scroll", onScroll);
-      if (frame) cancelAnimationFrame(frame);
-    };
-  }, []);
-
-  // The sheet is a mobile affordance; if the viewport grows past the
-  // breakpoint while it is open, drop it so state matches what is visible.
   useEffect(() => {
     const mq = window.matchMedia("(min-width: 60rem)");
     const sync = () => mq.matches && setOpen(false);
@@ -35,52 +19,50 @@ export function Nav() {
     return () => mq.removeEventListener("change", sync);
   }, []);
 
+  useEffect(() => {
+    if (!open) return;
+    const onKey = (e: KeyboardEvent) => e.key === "Escape" && setOpen(false);
+    window.addEventListener("keydown", onKey);
+    return () => window.removeEventListener("keydown", onKey);
+  }, [open]);
+
   return (
-    <header className="nav" data-scrolled={scrolled}>
-      <div className="nav__inner">
-        <a className="nav__brand" href="#top">
+    <header className="pill">
+      <div className="pill__bar">
+        <a className="pill__brand" href="#top">
           <span className="brand__bracket">[</span>
           <span>foostash</span>
           <span className="brand__bracket">]</span>
         </a>
 
-        <nav className="nav__center" aria-label="Sections">
+        <nav className="pill__links" aria-label="Sections">
           {NAV_LINKS.map((link) => (
-            <a
-              key={link.href}
-              className="nav__link"
-              href={link.href}
-              {...("external" in link && link.external
-                ? { target: "_blank", rel: "noreferrer" }
-                : {})}
-            >
+            <a key={link.href} className="pill__link" href={link.href}>
               {link.label}
             </a>
           ))}
         </nav>
 
-        <div className="nav__right">
+        <div className="pill__right">
           <a
-            className="nav__cta"
+            className="pill__gh"
             href={REPO}
             target="_blank"
             rel="noreferrer"
+            title="GitHub"
           >
-            <GithubMark />
-            <span className="nav__cta-label">star on github</span>
-            <span className="sr-only">star foostash on GitHub</span>
+            <GithubMark size={16} />
+            <span className="sr-only">foostash on GitHub</span>
           </a>
 
           <button
             type="button"
-            className="nav__toggle"
+            className="pill__toggle"
             aria-expanded={open}
-            aria-controls="nav-sheet"
+            aria-controls="pill-sheet"
             onClick={() => setOpen((v) => !v)}
           >
-            <span className="sr-only">
-              {open ? "Close menu" : "Open menu"}
-            </span>
+            <span className="sr-only">{open ? "Close menu" : "Open menu"}</span>
             <svg
               width="16"
               height="16"
@@ -100,17 +82,11 @@ export function Nav() {
         </div>
       </div>
 
-      <div className="nav__sheet" id="nav-sheet" data-open={open}>
+      <div className="pill__sheet" id="pill-sheet" data-open={open}>
         <ul>
           {NAV_LINKS.map((link) => (
             <li key={link.href}>
-              <a
-                href={link.href}
-                onClick={() => setOpen(false)}
-                {...("external" in link && link.external
-                  ? { target: "_blank", rel: "noreferrer" }
-                  : {})}
-              >
+              <a href={link.href} onClick={() => setOpen(false)}>
                 {link.label}
               </a>
             </li>

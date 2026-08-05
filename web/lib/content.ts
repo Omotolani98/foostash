@@ -12,12 +12,35 @@ export const VERSION = "v0.4.13";
 export const INSTALL_CMD = "brew install Omotolani98/foostash/foostash";
 
 export const NAV_LINKS = [
-  { href: "#features", label: "features" },
-  { href: "#architecture", label: "architecture" },
-  { href: "#security", label: "security" },
-  { href: "#selfhost", label: "self-host" },
-  { href: "/docs", label: "docs" },
+  { href: "#features", label: "Features" },
+  { href: "#architecture", label: "Architecture" },
+  { href: "#security", label: "Security" },
+  { href: "#selfhost", label: "Self-host" },
+  { href: "/docs", label: "Docs" },
 ] as const;
+
+/** Hero stats rail. Values are checked against the repo, not decorative. */
+export const STATS = [
+  { label: "Latest release", value: VERSION },
+  { label: "License", value: "MIT" },
+  { label: "Built with", value: "Go 1.25" },
+] as const;
+
+/** Env vars that rain down the hero background before being encrypted. */
+export const ENV_KEYS = [
+  "DB_HOST=localhost",
+  "DB_PASSWORD=s3cr3t",
+  "STRIPE_KEY=sk_live",
+  "JWT_SECRET=hunter2",
+  "REDIS_URL=redis://",
+  "AWS_ACCESS_KEY=AKIA",
+  "GHCR_TOKEN=ghp_x",
+  "SENTRY_DSN=https://",
+  "SMTP_PASS=mailgun",
+  "API_TOKEN=tok_9f2",
+  "PGPASSWORD=pg_dev",
+  "OAUTH_SECRET=oa_71",
+];
 
 /** Terminal replay script. `cmd` lines type out; the rest print whole. */
 export type TermLine = { kind: "cmd" | "ok" | "out"; text: string };
@@ -33,6 +56,9 @@ export const TERM_SCRIPT: TermLine[] = [
   { kind: "cmd", text: "foostash history DB_PASSWORD" },
   { kind: "out", text: "v2  2026-07-10 14:02  you@acme  set" },
   { kind: "out", text: "v1  2026-07-09 09:41  you@acme  set" },
+  { kind: "cmd", text: "foostash target kubernetes render --env prod" },
+  { kind: "out", text: "apiVersion: v1  kind: Secret  name: myapp-prod" },
+  { kind: "ok", text: "2 keys rendered — nothing written to disk" },
 ];
 
 export const FEATURES = [
@@ -62,27 +88,32 @@ export const FEATURES = [
   },
 ];
 
+/**
+ * Architecture cards. `edge` describes the hop *into* this node — the first
+ * card names its own boundary instead, since nothing precedes it.
+ */
 export const ARCH_NODES = [
   {
+    step: "01",
+    edge: "origin · plaintext boundary",
     name: "foostash CLI",
     where: "your laptop / CI",
     note: ["master.key · AES-256-GCM", "plaintext lives only here"],
   },
   {
+    step: "02",
+    edge: "◄ SSH-signed HTTPS · ciphertext only",
     name: "foostash serve",
     where: "self-hosted · one container",
     note: ["orgs · users · invites", "audit log · SSH pubkeys"],
   },
   {
+    step: "03",
+    edge: "◄ pgx · metadata",
     name: "Postgres",
     where: "yours, anywhere",
     note: ["no secret values", "no private keys"],
   },
-];
-
-export const ARCH_EDGES = [
-  { over: "SSH-signed HTTPS", under: "ciphertext only" },
-  { over: "pgx", under: "metadata" },
 ];
 
 export const SECURITY_ROWS = [

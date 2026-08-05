@@ -2,14 +2,14 @@ import { Fragment } from "react";
 import { Nav } from "@/components/Nav";
 import { Terminal } from "@/components/Terminal";
 import { InstallStrip } from "@/components/InstallStrip";
+import { AsciiStash } from "@/components/AsciiStash";
 import {
-  ARCH_EDGES,
   ARCH_NODES,
   FEATURES,
   REPO,
   SECURITY_ROWS,
   SELFHOST_STEPS,
-  VERSION,
+  STATS,
 } from "@/lib/content";
 
 export default function Home() {
@@ -20,33 +20,49 @@ export default function Home() {
       <main>
         {/* HERO */}
         <section className="hero">
-          <div className="hero__copy">
-            <div className="hero__badges">
-              <span className="badge">open source · MIT</span>
-              <span className="badge">{VERSION}</span>
-              <span className="badge badge--accent">single Go binary</span>
-            </div>
+          <div className="hero__panel">
+            <AsciiStash />
 
-            <h1 className="hero__title">
-              Secrets that never leave your machine unencrypted.
-            </h1>
+            <div className="hero__center">
+              <h1 className="hero__title">
+                Secrets that never leave your machine
+              </h1>
+              <p className="hero__lede">
+                Foostash — encrypted, versioned secrets for teams that
+                self-host. SSH-key auth, zero knowledge by design, one Go
+                binary.
+              </p>
 
-            <p className="hero__lede">
-              Encrypted, versioned secrets and environment manager. SSH-key
-              auth, a self-hostable server, and zero knowledge by design — the
-              server never sees plaintext. Retire your <code>.env</code> files
-              and Slack-pasted credentials.
-            </p>
-
-            <div className="hero__actions">
-              <InstallStrip />
-              <div className="hero__links">
-                <a href="#selfhost">→ self-host in one command</a>
-                <a href="/docs">→ read the docs</a>
+              <div className="hero__cta">
+                <a className="btn btn--solid" href="/docs">
+                  Get started
+                </a>
+                <a
+                  className="btn btn--ghost"
+                  href={REPO}
+                  target="_blank"
+                  rel="noreferrer"
+                >
+                  Github
+                </a>
               </div>
-            </div>
-          </div>
 
+              <InstallStrip />
+            </div>
+
+            <dl className="hero__stats">
+              {STATS.map((s) => (
+                <div className="hero__stat" key={s.label}>
+                  <dt>{s.label}</dt>
+                  <dd>{s.value}</dd>
+                </div>
+              ))}
+            </dl>
+          </div>
+        </section>
+
+        {/* TERMINAL */}
+        <section className="termwrap" aria-label="Terminal demo">
           <Terminal />
         </section>
 
@@ -79,30 +95,25 @@ export default function Home() {
               One CLI, one server, one Postgres. Nothing else to run.
             </p>
             <div className="arch">
-              {ARCH_NODES.map((node, i) => (
-                <Fragment key={node.name}>
-                  {i > 0 && (
-                    <div className="arch__edge" aria-hidden="true">
-                      <span className="arch__over">{ARCH_EDGES[i - 1].over}</span>
-                      <span className="arch__arrow" />
-                      <span className="arch__under">
-                        {ARCH_EDGES[i - 1].under}
-                      </span>
-                    </div>
-                  )}
-                  <div className="arch__node">
+              {ARCH_NODES.map((node) => (
+                <div className="arch__card" key={node.name}>
+                  <div className="arch__edge">
+                    <span className="arch__step">{node.step}</span>
+                    <span>{node.edge}</span>
+                  </div>
+                  <div className="arch__body">
                     <span className="arch__name">{node.name}</span>
                     <span className="arch__where">{node.where}</span>
                     <span className="arch__note">
-                      {node.note.map((n, j) => (
+                      {node.note.map((n, i) => (
                         <Fragment key={n}>
-                          {j > 0 && <br />}
+                          {i > 0 && <br />}
                           {n}
                         </Fragment>
                       ))}
                     </span>
                   </div>
-                </Fragment>
+                </div>
               ))}
             </div>
           </div>
