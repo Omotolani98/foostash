@@ -20,12 +20,19 @@
   /* ---- Rules ---- */
   --color-rule: oklch(24.7% 0.0105 260.7);
   --color-rule-strong: oklch(30% 0.0123 258.4);
+  --color-rule-pill: oklch(27.5% 0.0125 258.4);
 
   /* ---- Ink ramp ---- */
+  --color-chalk: oklch(96.6% 0.0053 106.5);
   --color-ink: oklch(93% 0.0067 106.5);
   --color-muted: oklch(74.6% 0.0128 259.8);
   --color-dim: oklch(64.9% 0.0146 262.4);
+  --color-stat: oklch(54.4% 0.0139 259.8);
   --color-faint: oklch(46.3% 0.011 258.4);
+
+  /* Decorative ASCII field behind the hero — sits just above the panel
+     surface, well below body-text contrast on purpose. */
+  --color-ascii: oklch(28.5% 0.02 251.6);
 
   /* ---- Accent ---- */
   --color-accent: oklch(84.2% 0.1641 145.8);
@@ -47,12 +54,15 @@
   --text-xl: 1.375rem;
   --text-2xl: clamp(1.375rem, 1.1rem + 1.2vw, 1.625rem);
   --text-display: clamp(2rem, 1.35rem + 2.9vw, 2.875rem);
+  /* Hero headline: 6 words / 41 chars, so it earns the full display rung. */
+  --text-hero: clamp(2.375rem, 1.1rem + 6.4vw, 5.75rem);
 
   --leading-tight: 1.12;
   --leading-snug: 1.35;
   --leading-body: 1.65;
   --leading-term: 1.85;
 
+  --tracking-hero: -0.04em;
   --tracking-display: -0.025em;
   --tracking-head: -0.02em;
 
@@ -83,5 +93,12 @@
      Terminal register: square corners everywhere. The radius token exists so
      nothing hard-codes a value if a rounded affordance is ever needed. */
   --radius-none: 0px;
+  --radius-pill: 999px;
   --rule-hair: 1px;
+
+  /* Hero panel inset, and the ASCII cell metrics the background is drawn on
+     (IBM Plex Mono advances 0.6em, so 12px type steps 7.2px per column). */
+  --hero-inset: 14px;
+  --ascii-col: 7.2px;
+  --ascii-row: 14px;
 }
