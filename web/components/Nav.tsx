@@ -29,10 +29,11 @@ export function Nav() {
   return (
     <header className="pill">
       <div className="pill__bar">
-        <a className="pill__brand" href="#top">
-          <span className="brand__bracket">[</span>
-          <span>foostash</span>
-          <span className="brand__bracket">]</span>
+        <a className="pill__brand" href="#top" aria-label="Foostash home">
+          <span className="pill__mark" aria-hidden="true">
+            fs
+          </span>
+          <span className="pill__word">foostash</span>
         </a>
 
         <nav className="pill__links" aria-label="Sections">

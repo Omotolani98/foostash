@@ -79,7 +79,8 @@
 
   --page-max: 1200px;
   --page-gutter: clamp(1.25rem, 4vw, 2rem);
-  --nav-h: 60px;
+  --nav-h: 72px;
+  --nav-max: 1080px;
 
   /* ---- Motion ---- */
   --ease-out: cubic-bezier(0.22, 1, 0.36, 1);
